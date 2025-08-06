@@ -1,7 +1,7 @@
 {
   "name": "safe-tx-proposer",
   "version": "1.0.0",
-  "description": "Safe Multisig Integration for RLC Multichain Bridge",
+  "description": "Safe Multisig Transaction Proposer for EVM Networks",
   "main": "dist/safe/index.js",
   "types": "dist/safe/index.d.ts",
   "scripts": {

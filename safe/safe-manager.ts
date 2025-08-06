@@ -83,7 +83,7 @@ export class SafeManager {
     }
 
     /*//////////////////////////////////////////////////////////////
-                  CREATE TRANSACTION - PROPOSE AND Bridge
+                      CREATE TRANSACTION - PROPOSE
     //////////////////////////////////////////////////////////////*/
 
     /**

@@ -1,5 +1,5 @@
 /**
- * Safe Multisig Integration for RLC Multichain Bridge
+ * Safe Multisig Transaction Proposer for EVM Networks
  */
 
 export type { MetaTransactionData, OperationType } from '@safe-global/types-kit';
