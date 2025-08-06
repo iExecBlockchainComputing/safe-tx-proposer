@@ -51,7 +51,7 @@ function parseCommandLineArgs(): ListPendingArgs {
 
 function showHelpAndExit(): void {
     console.log(`
-Usage: npm run list-pending [options]
+Usage: npm run safe:list-pending [options]
 
 Options:
   --type <type>           Transaction type to list:
@@ -63,9 +63,9 @@ Options:
   --limit <number>        Limit number of results
 
 Examples:
-  npm run list-pending
-  npm run list-pending -- --type all
-  npm run list-pending -- --type pending --limit 10
+  npm run safe:list-pending
+  npm run safe:list-pending -- --type all
+  npm run safe:list-pending -- --type pending --limit 10
         `);
     process.exit(0);
 }

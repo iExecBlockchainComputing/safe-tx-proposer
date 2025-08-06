@@ -555,7 +555,7 @@ async function main(): Promise<void> {
         console.log(`
 Transaction Executor
 
-Usage: npm run execute-tx -- [options]
+Usage: npm run safe:execute -- [options]
 
 Script execution options:
   --rpc-url <url>         RPC URL (default: http://localhost:8545)
@@ -567,9 +567,9 @@ Script execution options:
   --dry-run              Show transactions without executing
 
 Examples:
-  npm run execute-tx -- --rpc-url https://eth-sepolia.g.alchemy.com/v2/YOUR_API_KEY --env-vars "SOURCE_CHAIN=sepolia TARGET_CHAIN=arbitrum-sepolia"
-  npm run execute-tx -- --rpc-url https://arb-mainnet.g.alchemy.com/v2/YOUR_API_KEY --smart-contract Deploy
-  npm run execute-tx -- --rpc-url http://localhost:8545 --forge-script "script/bridges/layerZero/IexecLayerZeroBridge.s.sol:Configure"
+  npm run safe:execute -- --rpc-url https://eth-sepolia.g.alchemy.com/v2/YOUR_API_KEY --env-vars "SOURCE_CHAIN=sepolia TARGET_CHAIN=arbitrum-sepolia"
+  npm run safe:execute -- --rpc-url https://arb-mainnet.g.alchemy.com/v2/YOUR_API_KEY --smart-contract Deploy
+  npm run safe:execute -- --rpc-url http://localhost:8545 --forge-script "script/bridges/layerZero/IexecLayerZeroBridge.s.sol:Configure"
 
 Available scripts: ${getAvailableScripts().join(', ')}
     `);
