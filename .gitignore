@@ -10,7 +10,7 @@ build/
 
 # Environment files
 .env
-
+broadcast/
 
 
 # OS generated files
