@@ -22,8 +22,8 @@ export interface OwnerConfig {
 
 export async function getSafeConfig(): Promise<SafeConfig> {
     const rpcUrl = process.env.RPC_URL;
-    const safeAddress = process.env_ADDRESS;
-    const apiKey = process.env_API_KEY;
+    const safeAddress = process.env.SAFE_ADDRESS;
+    const apiKey = process.env.SAFE_API_KEY;
 
     if (!rpcUrl) {
         logger.error('Missing required environment variable: RPC_URL');
