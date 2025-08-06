@@ -2,13 +2,11 @@
 
 import { spawn } from 'child_process';
 import { AnvilConfig, AnvilManager } from './anvil-manager';
-import { validateEnvironment } from './config';
 import { ErrorCode, SafeTransactionError } from './errors';
-import { logger, measurePerformance } from './logger';
+import { logger } from './logger';
 import { SafeManager } from './safe-manager';
 import {
     convertHexToDecimal,
-    getAvailableScripts,
     getBroadcastFilePath,
     getChainIdFromRpc,
     parseEnvironmentVariables,
@@ -17,54 +15,15 @@ import {
     toChecksumAddress,
 } from './utils';
 import { Validator } from './validation';
-
-interface BroadcastTransaction {
-    hash: string;
-    transactionType: string;
-    contractName: string | null;
-    contractAddress: string;
-    function: string;
-    arguments: unknown[];
-    transaction: {
-        from: string;
-        to: string;
-        gas: string;
-        value: string;
-        input: string;
-        nonce: string;
-        chainId: string;
-    };
-    additionalContracts: unknown[];
-    isFixedGasLimit: boolean;
-}
-
-interface BroadcastFile {
-    transactions: BroadcastTransaction[];
-    receipts: unknown[];
-    libraries: unknown[];
-    pending: unknown[];
-    returns: unknown;
-    timestamp: number;
-    chain: number;
-    multi: boolean;
-    commit: string;
-}
-interface TransactionInput {
-    to: string;
-    value: string;
-    data: string;
-    operation?: 'call' | 'delegatecall';
-}
-
-interface ExecutionConfig {
-    dryRun?: boolean;
-    scriptName?: string;
-    rpcUrl: string;
-    forgeOptions?: string;
-    forgeScript?: string;
-    smartContract?: string;
-    envVars?: string;
-}
+import { DEFAULTS, FORGE_COMMAND, TRANSACTION_TYPES } from './constants/transaction-executor.constants';
+import type {
+    BroadcastFile,
+    BroadcastTransaction,
+    ExecutionConfig,
+    ForgeCommandResult,
+    TransactionInput,
+} from './types/transaction-executor.types';
+import { TransactionConsoleUtils } from './utils/console.utils';
 
 export class TransactionExecutor {
     private safeManager: SafeManager;
@@ -96,35 +55,25 @@ export class TransactionExecutor {
         // Validate execution configuration
         this.validateExecutionConfig(config);
 
-        return await measurePerformance('executeFromScript', async () => {
-            try {
-                console.log('=== Starting Foundry Script Execution ===');
-                console.log('Configuration:', {
-                    forgeScript: config.forgeScript,
-                    smartContract: config.smartContract,
-                    rpcUrl: config.rpcUrl?.substring(0, 50) + '...',
-                    forgeOptions: config.forgeOptions,
-                    envVars: config.envVars ? 'Present' : 'None',
-                });
+        try {
+            TransactionConsoleUtils.displayExecutionStart(config);
 
-                const chainId = await this.runFoundryScript(config);
-                logger.info('Foundry script completed successfully', { chainId });
-                console.log('=== Foundry Script Completed Successfully ===');
+            const chainId = await this.runFoundryScript(config);
+            logger.info('Foundry script completed successfully', { chainId });
+            TransactionConsoleUtils.displayExecutionSuccess();
 
-                // Execute transactions from broadcast file
-                return await this.processTransactionsFromBroadcast(config, chainId);
-            } catch (error) {
-                logger.error(
-                    'Foundry script execution failed, attempting fallback',
-                    error as Error,
-                );
-                console.log('=== Foundry Script Failed, Attempting Fallback ===');
-                console.error('Error details:', error);
+            // Execute transactions from broadcast file
+            return await this.processTransactionsFromBroadcast(config, chainId);
+        } catch (error) {
+            logger.error(
+                'Foundry script execution failed, attempting fallback',
+                error as Error,
+            );
+            TransactionConsoleUtils.displayFallbackAttempt(error);
 
-                // Fallback: try to execute from existing broadcast file
-                return await this.fallbackToBroadcastFile(config);
-            }
-        });
+            // Fallback: try to execute from existing broadcast file
+            return await this.fallbackToBroadcastFile(config);
+        }
     }
 
     /**
@@ -152,14 +101,10 @@ export class TransactionExecutor {
             return undefined;
         }
 
-        console.log('Checking Anvil availability...');
         const anvilAvailable = await this.anvilManager.checkAvailability();
+        TransactionConsoleUtils.displayAnvilStatus(anvilAvailable);
 
         if (!anvilAvailable) {
-            console.warn(
-                'Warning: Anvil is not available. Please install Foundry to use fork functionality.',
-            );
-            console.log('Continuing without fork.');
             return undefined;
         }
 
@@ -175,7 +120,7 @@ export class TransactionExecutor {
 
         await this.anvilManager.startFork(anvilConfig);
         // Wait for Anvil to start and accounts to be funded
-        await sleep(5000);
+        await sleep(DEFAULTS.ANVIL_STARTUP_DELAY);
 
         return anvilConfig;
     }
@@ -186,18 +131,9 @@ export class TransactionExecutor {
     private buildForgeScriptCommand(
         config: ExecutionConfig,
         forgeRpcUrl: string,
-    ): {
-        command: string;
-        args: string[];
-        contractName: string;
-        scriptPath: string;
-        forgeScript: string;
-    } {
-        const command = 'forge';
-
+    ): ForgeCommandResult {
         // Build forge script command
-        const scriptPath =
-            config.forgeScript || 'script/bridges/layerZero/IexecLayerZeroBridge.s.sol';
+        const scriptPath = config.forgeScript || DEFAULTS.SCRIPT_PATH;
 
         // Extract contract name from script path if smartContract is not provided
         let contractName = config.smartContract;
@@ -209,12 +145,12 @@ export class TransactionExecutor {
 
         const forgeScript = `${scriptPath}:${contractName}`;
         const args: string[] = [
-            'script',
+            FORGE_COMMAND.SUBCOMMAND,
             forgeScript,
-            '--rpc-url',
+            FORGE_COMMAND.FLAGS.RPC_URL,
             forgeRpcUrl,
-            '--broadcast',
-            '-vvv',
+            FORGE_COMMAND.FLAGS.BROADCAST,
+            FORGE_COMMAND.FLAGS.VERBOSE,
         ];
 
         // Add forge options if provided
@@ -223,7 +159,13 @@ export class TransactionExecutor {
             args.push(...options);
         }
 
-        return { command, args, contractName, scriptPath, forgeScript };
+        return { 
+            command: FORGE_COMMAND.COMMAND, 
+            args, 
+            contractName, 
+            scriptPath, 
+            forgeScript 
+        };
     }
 
     /**
@@ -277,10 +219,9 @@ export class TransactionExecutor {
         logger.info('Processing transactions from broadcast file...');
 
         // Extract contract name from script path for consistent naming
-        let defaultScriptName = 'IexecLayerZeroBridge';
+        let defaultScriptName: string = DEFAULTS.SCRIPT_NAME;
         if (!config.scriptName) {
-            const scriptPath =
-                config.forgeScript || 'script/bridges/layerZero/IexecLayerZeroBridge.s.sol';
+            const scriptPath = config.forgeScript || DEFAULTS.SCRIPT_PATH;
             const filename = scriptPath.split('/').pop() || '';
             defaultScriptName = filename.replace(/\.s\.sol$/, '').replace(/\.sol$/, '');
         }
@@ -318,7 +259,7 @@ export class TransactionExecutor {
 
         const transactionInputs = transactions.map((tx, index) => {
             try {
-                const txInput = {
+                const txInput: TransactionInput = {
                     to: toChecksumAddress(tx.transaction.to),
                     from: fromAddress, // Use one of the Safe owners
                     value: convertHexToDecimal(tx.transaction.value),
@@ -375,7 +316,7 @@ export class TransactionExecutor {
         console.log(`${dryRun ? 'Dry run: ' : ''}Executing ${transactions.length} transaction(s)`);
 
         if (dryRun) {
-            this.displayTransactions(transactions);
+            TransactionConsoleUtils.displayDryRunTransactions(transactions);
             return [];
         }
 
@@ -387,12 +328,7 @@ export class TransactionExecutor {
         );
 
         // Display transaction details
-        transactions.forEach((tx, index) => {
-            console.log(`\nTransaction ${index + 1}/${transactions.length}:`);
-            console.log(`   To: ${tx.to}`);
-            console.log(`   Value: ${tx.value}`);
-            console.log(`   Operation: ${tx.operation || 'call'}`);
-        });
+        TransactionConsoleUtils.displayTransactionDetails(transactions);
 
         console.log('\nProposing transactions with sequential nonces...');
 
@@ -401,12 +337,7 @@ export class TransactionExecutor {
             const proposedHashes =
                 await this.safeManager.proposeTransactionsWithSequentialNonces(transactionsData);
 
-            console.log('\nAll transactions executed successfully!');
-            console.log('\nSafe Transaction Hashes:');
-            proposedHashes.forEach((hash, index) => {
-                console.log(`   ${index + 1}. ${hash}`);
-            });
-
+            TransactionConsoleUtils.displayTransactionHashes(proposedHashes);
             return proposedHashes;
         } catch (error) {
             console.error('Sequential nonce method failed:', error);
@@ -416,31 +347,28 @@ export class TransactionExecutor {
             const proposedHashes: string[] = [];
 
             for (let i = 0; i < transactionsData.length; i++) {
-                console.log(
-                    `\nProposing transaction ${i + 1}/${transactionsData.length} (individual):`,
+                TransactionConsoleUtils.displayTransactionProgress(
+                    i + 1, 
+                    transactionsData.length, 
+                    true
                 );
 
                 try {
                     const hash = await this.safeManager.proposeTransaction(transactionsData[i]);
                     proposedHashes.push(hash);
-                    console.log(`   Success! Hash: ${hash}`);
+                    TransactionConsoleUtils.displayTransactionSuccess(hash);
 
                     // Small delay between transactions
                     if (i < transactionsData.length - 1) {
-                        await sleep(1000);
+                        await sleep(DEFAULTS.TRANSACTION_DELAY);
                     }
                 } catch (individualError) {
-                    console.error(`   Failed to propose transaction ${i + 1}:`, individualError);
+                    TransactionConsoleUtils.displayTransactionFailure(i + 1, individualError);
                     throw individualError;
                 }
             }
 
-            console.log('\nAll transactions executed successfully (fallback method)!');
-            console.log('\nSafe Transaction Hashes:');
-            proposedHashes.forEach((hash, index) => {
-                console.log(`   ${index + 1}. ${hash}`);
-            });
-
+            TransactionConsoleUtils.displayTransactionHashes(proposedHashes, 'fallback method');
             return proposedHashes;
         }
     }
@@ -475,11 +403,14 @@ export class TransactionExecutor {
                     Object.assign(env, parsedEnvVars);
                 }
 
-                console.log(`Running command: ${command} ${args.join(' ')}`);
-                console.log('Script path:', scriptPath);
-                console.log('Contract name:', contractName);
-                console.log('Forge script:', forgeScript);
-                console.log('Forge options:', config.forgeOptions);
+                TransactionConsoleUtils.displayForgeCommand(
+                    command, 
+                    args, 
+                    scriptPath, 
+                    contractName, 
+                    forgeScript, 
+                    config.forgeOptions
+                );
 
                 const childProcess = spawn(command, args, {
                     cwd: process.cwd(),
@@ -505,14 +436,17 @@ export class TransactionExecutor {
 
         try {
             const broadcastData: BroadcastFile = readJsonFile(broadcastPath);
-            console.log('Broadcast file loaded successfully');
-            console.log('Total transactions in file:', broadcastData.transactions.length);
-
+            
             // Filter for CALL transactions only (deployments and other types should be excluded)
             const callTransactions = broadcastData.transactions.filter(
-                (tx) => tx.transactionType === 'CALL',
+                (tx) => tx.transactionType === TRANSACTION_TYPES.CALL,
             );
-            console.log('CALL transactions found:', callTransactions.length);
+            
+            TransactionConsoleUtils.displayBroadcastInfo(
+                scriptName,
+                broadcastData.transactions.length,
+                callTransactions.length,
+            );
 
             return callTransactions;
         } catch (error) {
@@ -526,143 +460,9 @@ export class TransactionExecutor {
     }
 
     /**
-     * Display transactions in a readable format
-     */
-    private displayTransactions(transactions: TransactionInput[]): void {
-        console.log('\nTransactions to be executed:');
-        transactions.forEach((tx, index) => {
-            console.log(`\nTransaction ${index + 1}:`);
-            console.log(`   To: ${tx.to}`);
-            console.log(`   Value: ${tx.value}`);
-            console.log(`   Data: ${tx.data}`);
-            console.log(`   Operation: ${tx.operation || 'call'}`);
-        });
-    }
-
-    /**
      * Get the current nonce for the Safe
      */
     async getCurrentNonce(): Promise<number> {
         return await this.safeManager.getCurrentNonce();
     }
-}
-
-// CLI functionality
-async function main(): Promise<void> {
-    const args = process.argv.slice(2);
-
-    if (args.length === 0) {
-        console.log(`
-Transaction Executor
-
-Usage: npm run safe:execute -- [options]
-
-Script execution options:
-  --rpc-url <url>         RPC URL (default: http://localhost:8545)
-  --script <name>         Script name for broadcast file (default: IexecLayerZeroBridge)
-  --forge-script <path>   Forge script path (default: script/bridges/layerZero/IexecLayerZeroBridge.s.sol:Configure)
-  --smart-contract <name> Smart contract name (default: Configure)
-  --env-vars <vars>       Environment variables as string: "KEY1=value1 KEY2=value2"
-  --forge-options <opts>  Additional forge options
-  --dry-run              Show transactions without executing
-
-Examples:
-  npm run safe:execute -- --rpc-url https://eth-sepolia.g.alchemy.com/v2/YOUR_API_KEY --env-vars "SOURCE_CHAIN=sepolia TARGET_CHAIN=arbitrum-sepolia"
-  npm run safe:execute -- --rpc-url https://arb-mainnet.g.alchemy.com/v2/YOUR_API_KEY --smart-contract Deploy
-  npm run safe:execute -- --rpc-url http://localhost:8545 --forge-script "script/bridges/layerZero/IexecLayerZeroBridge.s.sol:Configure"
-
-Available scripts: ${getAvailableScripts().join(', ')}
-    `);
-        process.exit(1);
-    }
-
-    try {
-        await validateEnvironment();
-
-        const executor = await TransactionExecutor.create();
-        await executeScriptCommand(executor, args);
-    } catch (error) {
-        console.error('Execution failed:', error);
-        process.exit(1);
-    }
-}
-
-/**
- * Parse command line arguments
- */
-function parseExecutionArgs(args: string[]): ExecutionConfig {
-    const config: ExecutionConfig = { dryRun: false, rpcUrl: 'http://localhost:8545' };
-
-    for (let i = 0; i < args.length; i++) {
-        const arg = args[i];
-
-        if (arg.startsWith('--forge-options=')) {
-            config.forgeOptions = arg.substring('--forge-options='.length);
-            continue;
-        }
-
-        switch (arg) {
-            case '--rpc-url':
-                config.rpcUrl = args[++i];
-                break;
-            case '--script':
-                config.scriptName = args[++i];
-                break;
-            case '--forge-options':
-                config.forgeOptions = args[++i];
-                break;
-            case '--forge-script':
-                config.forgeScript = args[++i];
-                break;
-            case '--smart-contract':
-                config.smartContract = args[++i];
-                break;
-            case '--env-vars':
-                config.envVars = args[++i];
-                break;
-            case '--dry-run':
-                config.dryRun = true;
-                break;
-        }
-    }
-
-    return config;
-}
-
-/**
- * Validate execution configuration
- */
-function validateExecutionArgs(config: ExecutionConfig): void {
-    // Check if we have the required configuration
-    let hasValidConfig = false;
-
-    // Check if forge script is explicitly provided
-    if (config.forgeScript) {
-        hasValidConfig = true;
-    }
-
-    // Check if smart contract is provided
-    if (config.smartContract) {
-        hasValidConfig = true;
-    }
-
-    // Check if environment variables are provided
-    if (config.envVars) {
-        hasValidConfig = true;
-    }
-
-    if (!hasValidConfig) {
-        console.error('Error: Either --forge-script, --smart-contract, or --env-vars is required');
-        process.exit(1);
-    }
-}
-
-async function executeScriptCommand(executor: TransactionExecutor, args: string[]): Promise<void> {
-    const config = parseExecutionArgs(args);
-    validateExecutionArgs(config);
-    await executor.executeFromScript(config);
-}
-
-if (require.main === module) {
-    main().catch(console.error);
 }
