@@ -20,6 +20,7 @@ export class SafeManager {
         this.safeConfig = safeConfig;
         this.apiKit = new SafeApiKit({
             chainId: this.safeConfig.chainId,
+            apiKey: this.safeConfig.apiKey,
         });
 
         logger.info('SafeManager initialized successfully', {
