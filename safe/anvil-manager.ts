@@ -8,7 +8,7 @@ export interface AnvilConfig {
     timeout?: number;
     accounts?: number;
     balance?: number;
-    unlockAccounts?: string[];
+    unlockAccount?: string;
 }
 
 export class AnvilManager {
@@ -66,11 +66,11 @@ export class AnvilManager {
                 balance.toString(),
             ];
 
-            // Add auto-impersonate if we have accounts to unlock
-            if (config.unlockAccounts && config.unlockAccounts.length > 0) {
+            // Add auto-impersonate if we have an account to unlock
+            if (config.unlockAccount) {
                 anvilArgs.push('--auto-impersonate');
                 logger.info(
-                    `Auto-impersonate enabled for ${config.unlockAccounts.length} account(s)`,
+                    `Auto-impersonate enabled for account: ${config.unlockAccount}`,
                 );
             }
 
@@ -95,11 +95,11 @@ export class AnvilManager {
                     this.isStarted = true;
                     logger.info(`Anvil fork started successfully on ${host}:${port}`);
 
-                    // Fund any unlock accounts after startup
-                    if (config.unlockAccounts && config.unlockAccounts.length > 0) {
-                        this.fundUnlockAccounts(config.unlockAccounts, balance, host, port).catch(
+                    // Fund the unlock account after startup
+                    if (config.unlockAccount) {
+                        this.fundUnlockAccount(config.unlockAccount, balance, host, port).catch(
                             (error: Error) => {
-                                logger.error(`Failed to fund unlock accounts: ${error.message}`);
+                                logger.error(`Failed to fund unlock account: ${error.message}`);
                             },
                         );
                     }
@@ -188,10 +188,10 @@ export class AnvilManager {
     }
 
     /**
-     * Fund unlock accounts using Anvil RPC calls
+     * Fund unlock account using Anvil RPC calls
      */
-    private async fundUnlockAccounts(
-        accounts: string[],
+    private async fundUnlockAccount(
+        account: string,
         balance: number,
         host: string,
         port: number,
@@ -201,62 +201,37 @@ export class AnvilManager {
         // Convert balance from ETH to Wei (18 decimals)
         const balanceWei = `0x${(BigInt(balance) * BigInt(10) ** BigInt(18)).toString(16)}`;
 
-        logger.info(`Funding ${accounts.length} unlock account(s) with ${balance} ETH each...`);
+        logger.info(`Funding unlock account ${account} with ${balance} ETH...`);
 
-        for (const account of accounts) {
-            try {
-                const response = await fetch(rpcUrl, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        jsonrpc: '2.0',
-                        method: 'anvil_setBalance',
-                        params: [account, balanceWei],
-                        id: 1,
-                    }),
-                });
+        try {
+            const response = await fetch(rpcUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    jsonrpc: '2.0',
+                    method: 'anvil_setBalance',
+                    params: [account, balanceWei],
+                    id: 1,
+                }),
+            });
 
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-
-                const result = (await response.json()) as { error?: { message: string } };
-
-                if (result.error) {
-                    throw new Error(`RPC error: ${result.error.message}`);
-                }
-
-                logger.info(`Successfully funded account ${account} with ${balance} ETH`);
-            } catch (error: unknown) {
-                logger.error(`Failed to fund account ${account}: ${String(error)}`);
-                throw error;
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
             }
-        }
-    }
 
-    /**
-     * Extract sender addresses from forge options string
-     */
-    static extractSenderFromForgeOptions(forgeOptions?: string): string[] {
-        if (!forgeOptions) {
-            return [];
-        }
+            const result = (await response.json()) as { error?: { message: string } };
 
-        const senders: string[] = [];
-        const options = forgeOptions.trim().split(/\s+/);
-
-        for (let i = 0; i < options.length; i++) {
-            if (options[i] === '--sender' && i + 1 < options.length) {
-                const sender = options[i + 1];
-                if (sender && sender.startsWith('0x')) {
-                    senders.push(sender);
-                }
+            if (result.error) {
+                throw new Error(`RPC error: ${result.error.message}`);
             }
-        }
 
-        return senders;
+            logger.info(`Successfully funded account ${account} with ${balance} ETH`);
+        } catch (error: unknown) {
+            logger.error(`Failed to fund account ${account}: ${String(error)}`);
+            throw error;
+        }
     }
 
     /**

@@ -4,7 +4,7 @@
  * CLI interface for TransactionExecutor
  */
 
-import { validateEnvironment } from '../config';
+import { validateEnvironment, getSafeConfig } from '../config';
 import { CLI_HELP_TEXT, DEFAULTS } from '../constants/transaction-executor.constants';
 import type { ExecutionConfig } from '../types/transaction-executor.types';
 import { getAvailableScripts } from '../utils/utils';
@@ -13,19 +13,19 @@ import { TransactionExecutor } from '../transaction-executor';
 /**
  * Parse command line arguments
  */
-function parseExecutionArgs(args: string[]): ExecutionConfig {
+async function parseExecutionArgs(args: string[]): Promise<ExecutionConfig> {
     const config: ExecutionConfig = { 
         dryRun: false, 
         rpcUrl: DEFAULTS.RPC_URL 
     };
 
+    // Get Safe configuration to automatically set forge options
+    const safeConfig = await getSafeConfig();
+    const defaultForgeOptions = `--unlocked --sender ${safeConfig.safeAddress}`;
+    config.forgeOptions = defaultForgeOptions;
+
     for (let i = 0; i < args.length; i++) {
         const arg = args[i];
-
-        if (arg.startsWith('--forge-options=')) {
-            config.forgeOptions = arg.substring('--forge-options='.length);
-            continue;
-        }
 
         switch (arg) {
             case '--rpc-url':
@@ -33,9 +33,6 @@ function parseExecutionArgs(args: string[]): ExecutionConfig {
                 break;
             case '--script':
                 config.scriptName = args[++i];
-                break;
-            case '--forge-options':
-                config.forgeOptions = args[++i];
                 break;
             case '--forge-script':
                 config.forgeScript = args[++i];
@@ -75,7 +72,7 @@ function validateExecutionArgs(config: ExecutionConfig): void {
  * Execute script command
  */
 async function executeScriptCommand(executor: TransactionExecutor, args: string[]): Promise<void> {
-    const config = parseExecutionArgs(args);
+    const config = await parseExecutionArgs(args);
     validateExecutionArgs(config);
     await executor.executeFromScript(config);
 }

@@ -108,14 +108,14 @@ export class TransactionExecutor {
             return undefined;
         }
 
-        // Extract sender addresses from forge options to unlock them
-        const sendersToUnlock = AnvilManager.extractSenderFromForgeOptions(config.forgeOptions);
+        // Get Safe address directly from the SafeManager
+        const safeAddress = this.safeManager.getSafeAddress();
 
         const anvilConfig: AnvilConfig = {
             forkUrl: config.rpcUrl,
             port: undefined,
             host: undefined,
-            unlockAccounts: sendersToUnlock,
+            unlockAccount: safeAddress,
         };
 
         await this.anvilManager.startFork(anvilConfig);

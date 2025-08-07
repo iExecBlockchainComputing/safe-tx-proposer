@@ -33,12 +33,13 @@ Usage: npm run safe:execute -- [options]
 
 Script execution options:
   --rpc-url <url>         RPC URL (default: ${DEFAULTS.RPC_URL})
-  --script <name>         Script name for broadcast file (default: ${DEFAULTS.SCRIPT_NAME})
+  --script <n>         Script name for broadcast file (default: ${DEFAULTS.SCRIPT_NAME})
   --forge-script <path>   Forge script path (default: ${DEFAULTS.SCRIPT_PATH}:${DEFAULTS.SMART_CONTRACT})
-  --smart-contract <name> Smart contract name (default: ${DEFAULTS.SMART_CONTRACT})
+  --smart-contract <n> Smart contract name (default: ${DEFAULTS.SMART_CONTRACT})
   --env-vars <vars>       Environment variables as string: "KEY1=value1 KEY2=value2"
-  --forge-options <opts>  Additional forge options
   --dry-run              Show transactions without executing
+
+Note: Forge options are automatically set to "--unlocked --sender <SAFE_ADDRESS>" from your .env configuration.
 
 Examples:
   npm run safe:execute -- --rpc-url https://eth-sepolia.g.alchemy.com/v2/YOUR_API_KEY --env-vars "SOURCE_CHAIN=sepolia TARGET_CHAIN=arbitrum-sepolia"
