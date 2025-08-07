@@ -2,7 +2,7 @@
 
 import { validateEnvironment } from '../config';
 import { TransactionLister } from '../transaction-lister';
-import { ListPendingConsoleUtils } from '../utils/list-pending.console.utils';
+import { ListPendingConsoleUtils } from '../utils/transaction-lister.console.utils';
 
 export async function main(): Promise<void> {
     const parsedArgs = TransactionLister.parseCommandLineArgs();

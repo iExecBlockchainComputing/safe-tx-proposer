@@ -11,7 +11,7 @@
     "lint": "eslint safe/**/*.ts",
     "lint:fix": "eslint safe/**/*.ts --fix",
     "clean": "rimraf dist",
-    "safe:list-pending": "ts-node safe/cli/list-pending.cli.ts",
+    "safe:transaction-lister": "ts-node safe/cli/transaction-lister.cli.ts",
     "safe:execute": "ts-node safe/cli/transaction-executor.cli.ts",
     "safe:validate": "ts-node -e \"import('./safe/validation').then(v => v.Validator.validateAll())\"",
     "typecheck": "tsc --noEmit"

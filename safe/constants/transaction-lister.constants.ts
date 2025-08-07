@@ -30,7 +30,7 @@ export const DISPLAY_VALUES = {
 export const CLI_HELP_TEXT = `
 Transaction Lister - List Safe transactions
 
-Usage: npm run safe:list-pending [options]
+Usage: npm run safe:transaction-lister [options]
 
 Options:
   --type <type>           Transaction type to list:
@@ -42,7 +42,7 @@ Options:
   --limit <number>        Limit number of results
 
 Examples:
-  npm run safe:list-pending
-  npm run safe:list-pending -- --type all
-  npm run safe:list-pending -- --type pending --limit 10
+  npm run safe:transaction-lister
+  npm run safe:transaction-lister -- --type all
+  npm run safe:transaction-lister -- --type pending --limit 10
 ` as const;

@@ -3,15 +3,15 @@
 import { SafeManager } from './safe-manager';
 import { logger } from './logger';
 import { SafeTransactionError, ErrorCode } from './errors';
-import { DEFAULTS, TRANSACTION_TYPES } from './constants/list-pending.constants';
+import { DEFAULTS, TRANSACTION_TYPES } from './constants/transaction-lister.constants';
 import type {
     ListPendingArgs,
     ListPendingConfig,
     TransactionResult,
     TransactionResponse,
     TransactionType,
-} from './types/list-pending.types';
-import { ListPendingConsoleUtils } from './utils/list-pending.console.utils';
+} from './types/transaction-lister.types';
+import { ListPendingConsoleUtils } from './utils/transaction-lister.console.utils';
 
 export class TransactionLister {
     private safeManager: SafeManager;

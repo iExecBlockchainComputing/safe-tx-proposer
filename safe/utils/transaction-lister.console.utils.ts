@@ -3,8 +3,8 @@
  */
 
 import { formatDate, formatWeiToEther, truncateData } from './utils';
-import { CLI_HELP_TEXT, EXECUTION_STATUS, TRANSACTION_TYPES, DISPLAY_VALUES } from '../constants/list-pending.constants';
-import type { TransactionResult } from '../types/list-pending.types';
+import { CLI_HELP_TEXT, EXECUTION_STATUS, TRANSACTION_TYPES, DISPLAY_VALUES } from '../constants/transaction-lister.constants';
+import type { TransactionResult } from '../types/transaction-lister.types';
 
 export class ListPendingConsoleUtils {
     /**

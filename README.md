@@ -45,7 +45,7 @@ PROPOSER_PRIVATE_KEY=...
 npm run build
 
 # List pending transactions
-npm run safe:list-pending
+npm run safe:transaction-lister
 
 # Run tests
 npm test
