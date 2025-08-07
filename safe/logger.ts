@@ -255,68 +255,7 @@ export class Logger {
     debug(message: string, metadata?: Record<string, unknown>): void {
         this.log(LogLevel.DEBUG, message, metadata);
     }
-
-    // Convenience methods for specific use cases
-    transaction(hash: string, action: string, metadata?: Record<string, unknown>): void {
-        this.info(`Transaction ${action}: ${hash}`, metadata);
-    }
-
-    network(action: string, metadata?: Record<string, unknown>): void {
-        this.info(`Network ${action}`, metadata);
-    }
-
-    safe(action: string, metadata?: Record<string, unknown>): void {
-        this.info(`Safe ${action}`, metadata);
-    }
-
-    foundry(action: string, metadata?: Record<string, unknown>): void {
-        this.info(`Foundry ${action}`, metadata);
-    }
-
-    // Performance logging
-    performance(operation: string, duration: number, metadata?: Record<string, unknown>): void {
-        this.info(`Performance: ${operation} completed in ${duration}ms`, metadata);
-    }
-
-    // Audit logging for sensitive operations
-    audit(action: string, user: string, metadata?: Record<string, unknown>): void {
-        this.info(`Audit: ${user} performed ${action}`, {
-            audit: true,
-            user,
-            action,
-            ...metadata,
-        });
-    }
 }
 
 // Singleton logger instance
 export const logger = new Logger();
-
-// Helper function to create child loggers with context
-export function createLogger(context: Record<string, unknown>): Logger {
-    return new Logger({
-        ...context,
-    });
-}
-
-// Performance measurement utility
-export async function measurePerformance<T>(
-    operation: string,
-    fn: () => Promise<T>,
-    loggerInstance: Logger = logger,
-): Promise<T> {
-    const start = Date.now();
-    try {
-        const result = await fn();
-        const duration = Date.now() - start;
-        loggerInstance.performance(operation, duration);
-        return result;
-    } catch (error) {
-        const duration = Date.now() - start;
-        loggerInstance.error(
-            `Performance: ${operation} failed after ${duration}ms`,
-            error as Error,
-        );
-        throw error;
-    }
-}

@@ -14,7 +14,6 @@ export interface AnvilConfig {
 export class AnvilManager {
     private anvilProcess: ChildProcess | null = null;
     private isStarted: boolean = false;
-    private currentConfig: AnvilConfig | null = null;
 
     /**
      * Check if Anvil is available on the system
@@ -94,7 +93,6 @@ export class AnvilManager {
                 if (output.includes('Listening on') && !startupComplete) {
                     startupComplete = true;
                     this.isStarted = true;
-                    this.currentConfig = config;
                     logger.info(`Anvil fork started successfully on ${host}:${port}`);
 
                     // Fund any unlock accounts after startup
@@ -173,7 +171,6 @@ export class AnvilManager {
     private cleanup(): void {
         this.anvilProcess = null;
         this.isStarted = false;
-        this.currentConfig = null;
     }
 
     /**
