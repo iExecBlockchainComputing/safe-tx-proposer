@@ -4,7 +4,7 @@ import { validateEnvironment } from '../config';
 import { TransactionLister } from '../transaction-lister';
 import { ListPendingConsoleUtils } from '../utils/list-pending.console.utils';
 
-async function main(): Promise<void> {
+export async function main(): Promise<void> {
     const parsedArgs = TransactionLister.parseCommandLineArgs();
 
     try {

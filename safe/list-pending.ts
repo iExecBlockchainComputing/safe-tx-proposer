@@ -4,7 +4,7 @@
  * List Pending Transactions - Main Export File
  * 
  * This file exports all the components of the list-pending functionality.
- * For execution, use list-pending.main.ts or cli/list-pending.cli.ts
+ * For execution, use cli/list-pending.cli.ts
  */
 
 export { TransactionLister } from './transaction-lister';
@@ -13,11 +13,11 @@ export * from './types/list-pending.types';
 export * from './constants/list-pending.constants';
 
 // Re-export main function for direct execution if needed
-export { main } from './list-pending.main';
+export { main } from './cli/list-pending.cli';
 
 // For backward compatibility when this file is executed directly
 if (require.main === module) {
-    import('./list-pending.main').then(module => {
+    import('./cli/list-pending.cli').then(module => {
         void module.main();
     }).catch(error => {
         console.error('Failed to execute list-pending:', error);
