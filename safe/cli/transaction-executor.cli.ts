@@ -7,7 +7,7 @@
 import { validateEnvironment } from '../config';
 import { CLI_HELP_TEXT, DEFAULTS } from '../constants/transaction-executor.constants';
 import type { ExecutionConfig } from '../types/transaction-executor.types';
-import { getAvailableScripts } from '../utils';
+import { getAvailableScripts } from '../utils/utils';
 import { TransactionExecutor } from '../transaction-executor';
 
 /**

@@ -2,7 +2,7 @@
  * Console utilities for TransactionLister display formatting
  */
 
-import { formatDate, formatWeiToEther, truncateData } from '../utils';
+import { formatDate, formatWeiToEther, truncateData } from './utils';
 import { CLI_HELP_TEXT, EXECUTION_STATUS, TRANSACTION_TYPES, DISPLAY_VALUES } from '../constants/list-pending.constants';
 import type { TransactionResult } from '../types/list-pending.types';
 

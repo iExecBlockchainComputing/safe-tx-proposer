@@ -1,6 +1,5 @@
 #!/usr/bin/env ts-node
 
-import { validateEnvironment } from './config';
 import { SafeManager } from './safe-manager';
 import { logger } from './logger';
 import { SafeTransactionError, ErrorCode } from './errors';

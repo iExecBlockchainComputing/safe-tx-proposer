@@ -13,7 +13,7 @@ import {
     readJsonFile,
     sleep,
     toChecksumAddress,
-} from './utils';
+} from './utils/utils';
 import { Validator } from './validation';
 import { DEFAULTS, FORGE_COMMAND, TRANSACTION_TYPES } from './constants/transaction-executor.constants';
 import type {
@@ -23,7 +23,7 @@ import type {
     ForgeCommandResult,
     TransactionInput,
 } from './types/transaction-executor.types';
-import { TransactionConsoleUtils } from './utils/console.utils';
+import { TransactionConsoleUtils } from './utils/transaction-executor.console.utils';
 
 export class TransactionExecutor {
     private safeManager: SafeManager;
