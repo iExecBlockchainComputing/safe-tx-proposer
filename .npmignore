@@ -1,0 +1,41 @@
+# Source files (only include dist)
+safe/
+*.ts
+!*.d.ts
+
+# Development files
+.eslintrc.js
+jest.config.js
+jest.setup.js
+tsconfig.json
+.env*
+!.env.template
+
+# Testing
+coverage/
+**/*.test.ts
+**/*.spec.ts
+__tests__/
+
+# Development dependencies
+node_modules/
+npm-debug.log*
+
+# IDE/Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Git
+.git/
+.gitignore
+
+# CI/CD
+.github/
+.travis.yml
+.circleci/
