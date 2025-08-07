@@ -2,7 +2,7 @@
 
 import * as core from '@actions/core';
 import { writeFileSync } from 'fs';
-import { validateEnvironment } from '../safe/config';
+import { validateEnvironment, getSafeConfig } from '../safe/config';
 import { ErrorCode, SafeTransactionError } from '../safe/errors';
 import { logger } from '../safe/logger';
 import { SafeManager } from '../safe/safe-manager';
@@ -102,28 +102,72 @@ SAFE_API_KEY=${this.inputs.safeApiKey}
         const executor = await TransactionExecutor.create();
 
         try {
+            // Get Safe configuration to set forge options like the CLI does
+            const safeConfig = await getSafeConfig();
+            const defaultForgeOptions = `--unlocked --sender ${safeConfig.safeAddress}`;
+
             // Configure execution parameters based on inputs
-            const executionConfig = {
-                dryRun: this.inputs.dryRun,
-                rpcUrl: this.inputs.rpcUrl,
-                forgeScript: this.inputs.foundryScriptPath,
-            };
+            // Handle the case where foundryScriptPath already contains contract name
+            const scriptPath = this.inputs.foundryScriptPath;
+            let forgeScript: string;
+            let smartContract: string | undefined;
 
-            const transactionHashes = await executor.executeFromScript(executionConfig);
+            if (scriptPath.includes(':')) {
+                // Script path already contains contract name (e.g., "script/Test.s.sol:TestContract")
+                forgeScript = scriptPath;
+                // Extract just the script file path for the config
+                const parts = scriptPath.split(':');
+                const actualScriptPath = parts[0];
+                smartContract = parts[1];
+                
+                const executionConfig = {
+                    dryRun: this.inputs.dryRun,
+                    rpcUrl: this.inputs.rpcUrl,
+                    forgeScript: actualScriptPath, // Just the file path
+                    smartContract: smartContract, // The contract name
+                    forgeOptions: defaultForgeOptions,
+                };
 
-            // Set action outputs
-            if (transactionHashes && transactionHashes.length > 0) {
-                core.setOutput('transaction-hash', transactionHashes[0]);
-                core.setOutput('transaction-hashes', JSON.stringify(transactionHashes));
+                const transactionHashes = await executor.executeFromScript(executionConfig);
+
+                // Set action outputs
+                if (transactionHashes && transactionHashes.length > 0) {
+                    core.setOutput('transaction-hash', transactionHashes[0]);
+                    core.setOutput('transaction-hashes', JSON.stringify(transactionHashes));
+                }
+
+                core.setOutput('status', 'success');
+                core.setOutput('transaction-count', transactionHashes.length.toString());
+
+                logger.info('Transaction proposal completed successfully', {
+                    transactionCount: transactionHashes.length,
+                    hashes: transactionHashes,
+                });
+            } else {
+                // Original behavior for backward compatibility
+                const executionConfig = {
+                    dryRun: this.inputs.dryRun,
+                    rpcUrl: this.inputs.rpcUrl,
+                    forgeScript: scriptPath,
+                    forgeOptions: defaultForgeOptions,
+                };
+
+                const transactionHashes = await executor.executeFromScript(executionConfig);
+
+                // Set action outputs
+                if (transactionHashes && transactionHashes.length > 0) {
+                    core.setOutput('transaction-hash', transactionHashes[0]);
+                    core.setOutput('transaction-hashes', JSON.stringify(transactionHashes));
+                }
+
+                core.setOutput('status', 'success');
+                core.setOutput('transaction-count', transactionHashes.length.toString());
+
+                logger.info('Transaction proposal completed successfully', {
+                    transactionCount: transactionHashes.length,
+                    hashes: transactionHashes,
+                });
             }
-
-            core.setOutput('status', 'success');
-            core.setOutput('transaction-count', transactionHashes.length.toString());
-
-            logger.info('Transaction proposal completed successfully', {
-                transactionCount: transactionHashes.length,
-                hashes: transactionHashes,
-            });
         } catch (error) {
             core.setOutput('status', 'failed');
             throw error;
