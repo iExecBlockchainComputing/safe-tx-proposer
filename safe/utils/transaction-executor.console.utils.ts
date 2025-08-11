@@ -4,6 +4,9 @@
 
 import type { ExecutionConfig, TransactionInput } from '../types/transaction-executor.types';
 
+// Type for error objects that can be safely logged
+type LoggableError = Error | { message?: string } | string | unknown;
+
 export class TransactionConsoleUtils {
     /**
      * Display execution configuration
@@ -29,7 +32,7 @@ export class TransactionConsoleUtils {
     /**
      * Display fallback attempt
      */
-    static displayFallbackAttempt(error: unknown): void {
+    static displayFallbackAttempt(error: LoggableError): void {
         console.log('=== Foundry Script Failed, Attempting Fallback ===');
         console.error('Error details:', error);
     }
@@ -56,12 +59,7 @@ export class TransactionConsoleUtils {
      * Display transaction details
      */
     static displayTransactionDetails(transactions: TransactionInput[]): void {
-        transactions.forEach((tx, index) => {
-            console.log(`\nTransaction ${index + 1}/${transactions.length}:`);
-            console.log(`   To: ${tx.to}`);
-            console.log(`   Value: ${tx.value}`);
-            console.log(`   Operation: ${tx.operation || 'call'}`);
-        });
+        this.displayTransactionList(transactions, 'Transaction Details');
     }
 
     /**
@@ -69,11 +67,24 @@ export class TransactionConsoleUtils {
      */
     static displayDryRunTransactions(transactions: TransactionInput[]): void {
         console.log('\nTransactions to be executed:');
+        this.displayTransactionList(transactions, 'Transaction', true);
+    }
+
+    /**
+     * Helper method to display a list of transactions
+     */
+    private static displayTransactionList(
+        transactions: TransactionInput[],
+        prefix: string,
+        includeData: boolean = false,
+    ): void {
         transactions.forEach((tx, index) => {
-            console.log(`\nTransaction ${index + 1}:`);
+            console.log(`\n${prefix} ${index + 1}/${transactions.length}:`);
             console.log(`   To: ${tx.to}`);
             console.log(`   Value: ${tx.value}`);
-            console.log(`   Data: ${tx.data}`);
+            if (includeData) {
+                console.log(`   Data: ${tx.data}`);
+            }
             console.log(`   Operation: ${tx.operation || 'call'}`);
         });
     }
@@ -125,8 +136,8 @@ export class TransactionConsoleUtils {
         total: number,
         individual: boolean = false,
     ): void {
-        const type = individual ? '(individual)' : '';
-        console.log(`\nProposing transaction ${current}/${total} ${type}:`);
+        const type = individual ? ' (individual)' : '';
+        console.log(`\nProposing transaction ${current}/${total}${type}:`);
     }
 
     /**
@@ -139,7 +150,7 @@ export class TransactionConsoleUtils {
     /**
      * Display transaction failure
      */
-    static displayTransactionFailure(index: number, error: unknown): void {
+    static displayTransactionFailure(index: number, error: LoggableError): void {
         console.error(`   Failed to propose transaction ${index}:`, error);
     }
 }
