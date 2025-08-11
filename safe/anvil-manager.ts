@@ -11,6 +11,11 @@ export interface AnvilConfig {
     unlockAccount?: string;
 }
 
+// Type for JSON-RPC response
+type JsonRpcResponse = {
+    error?: { message: string };
+};
+
 export class AnvilManager {
     private anvilProcess: ChildProcess | null = null;
     private isStarted: boolean = false;
@@ -98,17 +103,14 @@ export class AnvilManager {
                     // Fund the unlock account after startup
                     if (config.unlockAccount) {
                         this.fundUnlockAccount(config.unlockAccount, balance, host, port).catch(
-                            (error: Error) => {
-                                logger.error(`Failed to fund unlock account: ${error.message}`);
+                            (error) => {
+                                const errorMessage = error instanceof Error ? error.message : String(error);
+                                logger.error(`Failed to fund unlock account: ${errorMessage}`);
                             },
                         );
                     }
 
-                    if (this.anvilProcess) {
-                        resolve(this.anvilProcess);
-                    } else {
-                        reject(new Error('Anvil process is null after startup'));
-                    }
+                    resolve(this.anvilProcess!);
                 }
             });
 
@@ -136,7 +138,7 @@ export class AnvilManager {
             // Timeout if Anvil doesn't start
             setTimeout(() => {
                 if (!startupComplete) {
-                    this.stop();
+                    this.stop('startup timeout');
                     reject(new Error(`Anvil startup timeout after ${timeout / 1000} seconds`));
                 }
             }, timeout);
@@ -146,9 +148,10 @@ export class AnvilManager {
     /**
      * Stop the Anvil fork process
      */
-    stop(): void {
+    stop(reason?: string): void {
         if (this.anvilProcess && this.isStarted) {
-            logger.info('Stopping Anvil fork...');
+            const message = reason ? `Stopping Anvil fork: ${reason}` : 'Stopping Anvil fork...';
+            logger.info(message);
             this.anvilProcess.kill('SIGTERM');
             this.cleanup();
         }
@@ -158,11 +161,7 @@ export class AnvilManager {
      * Stop the Anvil process due to an error
      */
     stopOnError(): void {
-        if (this.anvilProcess) {
-            logger.info('Stopping Anvil fork due to error...');
-            this.anvilProcess.kill('SIGTERM');
-            this.cleanup();
-        }
+        this.stop('due to error');
     }
 
     /**
@@ -178,13 +177,6 @@ export class AnvilManager {
      */
     isRunning(): boolean {
         return this.isStarted && this.anvilProcess !== null;
-    }
-
-    /**
-     * Get the current Anvil process
-     */
-    getProcess(): ChildProcess | null {
-        return this.anvilProcess;
     }
 
     /**
@@ -221,15 +213,16 @@ export class AnvilManager {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
 
-            const result = (await response.json()) as { error?: { message: string } };
+            const result = (await response.json()) as JsonRpcResponse;
 
             if (result.error) {
                 throw new Error(`RPC error: ${result.error.message}`);
             }
 
             logger.info(`Successfully funded account ${account} with ${balance} ETH`);
-        } catch (error: unknown) {
-            logger.error(`Failed to fund account ${account}: ${String(error)}`);
+        } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            logger.error(`Failed to fund account ${account}: ${errorMessage}`);
             throw error;
         }
     }
