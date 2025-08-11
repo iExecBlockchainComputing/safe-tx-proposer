@@ -84,39 +84,6 @@ export function parseEnvironmentVariables(envVars: string): Record<string, strin
 }
 
 /**
- * Interface for transaction data
- */
-interface TransactionData {
-    to: string;
-    value: string;
-    data?: string;
-    operation?: string;
-}
-
-/**
- * Format transaction data for display
- */
-export function formatTransactionForDisplay(
-    tx: TransactionData,
-    index: number,
-    total: number,
-): string {
-    return `
-Transaction ${index + 1}/${total}:
-   To: ${tx.to}
-   Value: ${tx.value}
-   Data: ${tx.data ? tx.data.substring(0, 42) + '...' : 'None'}
-   Operation: ${tx.operation || 'call'}`;
-}
-
-/**
- * Format Safe transaction hash for display
- */
-export function formatSafeTransactionHash(hash: string, index: number): string {
-    return `   ${index + 1}. ${hash}`;
-}
-
-/**
  * Get available scripts from broadcast directory
  */
 export function getAvailableScripts(): string[] {
@@ -132,51 +99,10 @@ export function getAvailableScripts(): string[] {
 }
 
 /**
- * Get available chain IDs for a script
- */
-export function getAvailableChains(scriptName: string): string[] {
-    const scriptDir = path.join(process.cwd(), 'broadcast', `${scriptName}.s.sol`);
-    if (!fs.existsSync(scriptDir)) {
-        return [];
-    }
-
-    return fs
-        .readdirSync(scriptDir)
-        .filter((item) => fs.statSync(path.join(scriptDir, item)).isDirectory());
-}
-
-/**
  * Sleep for a specified number of milliseconds
  */
 export function sleep(ms: number): Promise<void> {
     return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-/**
- * Truncate data string for display purposes
- */
-export function truncateData(data: string, maxLength: number = 42): string {
-    if (!data || data.length <= maxLength) {
-        return data || 'None';
-    }
-    return data.substring(0, maxLength) + '...';
-}
-
-/**
- * Format date for display
- */
-export function formatDate(dateString: string): string {
-    if (!dateString) {
-        return 'N/A';
-    }
-    return new Date(dateString).toLocaleString();
-}
-
-/**
- * Check if a file exists
- */
-export function fileExists(filePath: string): boolean {
-    return fs.existsSync(filePath);
 }
 
 /**
@@ -192,28 +118,6 @@ export function readJsonFile<T = unknown>(filePath: string): T {
 }
 
 /**
- * Validate hex string
- */
-export function isValidHex(value: string): boolean {
-    if (!value) {
-        return false;
-    }
-    const cleanValue = value.startsWith('0x') ? value.slice(2) : value;
-    return /^[0-9a-fA-F]*$/.test(cleanValue);
-}
-
-/**
- * Validate Ethereum address
- */
-export function isValidAddress(address: string): boolean {
-    try {
-        return ethers.isAddress(address);
-    } catch {
-        return false;
-    }
-}
-
-/**
  * Convert address to checksum format
  */
 export function toChecksumAddress(address: string): string {
@@ -222,17 +126,6 @@ export function toChecksumAddress(address: string): string {
     } catch {
         process.stderr.write(`Invalid address format: ${address}\n`);
         return address; // Return original if conversion fails
-    }
-}
-
-/**
- * Format wei to ether for display
- */
-export function formatWeiToEther(wei: string): string {
-    try {
-        return ethers.formatEther(wei);
-    } catch {
-        return wei;
     }
 }
 
@@ -269,73 +162,3 @@ export function getBroadcastFilePath(scriptName: string, chainId: string): strin
     process.stdout.write(`Using broadcast file: ${files[0]}\n`);
     return mostRecentFile;
 }
-
-/**
- * Create delay between operations
- */
-export async function delay(ms: number): Promise<void> {
-    await sleep(ms);
-}
-
-/**
- * Retry operation with exponential backoff
- */
-export async function retryWithBackoff<T>(
-    operation: () => Promise<T>,
-    maxRetries: number = 3,
-    baseDelay: number = 1000,
-): Promise<T> {
-    for (let attempt = 1; attempt <= maxRetries; attempt++) {
-        try {
-            return await operation();
-        } catch (error) {
-            if (attempt === maxRetries) {
-                throw error;
-            }
-
-            const delayMs = baseDelay * Math.pow(2, attempt - 1);
-            process.stdout.write(`Attempt ${attempt} failed, retrying in ${delayMs}ms...\n`);
-            await sleep(delayMs);
-        }
-    }
-
-    throw new Error('Max retries exceeded');
-}
-
-/**
- * Console log utilities with consistent formatting
- */
-export const logger = {
-    info: (message: string, ...args: unknown[]): void => {
-        process.stdout.write(`ℹ️  ${message}\n`);
-        if (args.length > 0) {
-            process.stdout.write(`${JSON.stringify(args)}\n`);
-        }
-    },
-    success: (message: string, ...args: unknown[]): void => {
-        process.stdout.write(`✅ ${message}\n`);
-        if (args.length > 0) {
-            process.stdout.write(`${JSON.stringify(args)}\n`);
-        }
-    },
-    warning: (message: string, ...args: unknown[]): void => {
-        process.stderr.write(`⚠️  ${message}\n`);
-        if (args.length > 0) {
-            process.stderr.write(`${JSON.stringify(args)}\n`);
-        }
-    },
-    error: (message: string, ...args: unknown[]): void => {
-        process.stderr.write(`❌ ${message}\n`);
-        if (args.length > 0) {
-            process.stderr.write(`${JSON.stringify(args)}\n`);
-        }
-    },
-    debug: (message: string, ...args: unknown[]): void => {
-        if (process.env.DEBUG) {
-            process.stdout.write(`🐛 ${message}\n`);
-            if (args.length > 0) {
-                process.stdout.write(`${JSON.stringify(args)}\n`);
-            }
-        }
-    },
-};
