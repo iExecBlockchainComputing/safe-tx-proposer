@@ -12,7 +12,7 @@
     "lint:fix": "eslint safe/**/*.ts --fix",
     "clean": "rimraf dist",
     "safe:execute": "ts-node safe/cli/transaction-executor.cli.ts",
-    "safe:validate": "ts-node -e \"import('./safe/validation').then(v => v.Validator.validateAll())\"",
+    "safe:validate": "ts-node scripts/validate.ts",
     "typecheck": "tsc --noEmit"
   },
   "keywords": [
