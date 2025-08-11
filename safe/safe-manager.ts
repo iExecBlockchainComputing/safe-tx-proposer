@@ -1,18 +1,16 @@
-import SafeApiKit, {
-    SafeInfoResponse,
-} from '@safe-global/api-kit';
+import SafeApiKit, { SafeInfoResponse } from '@safe-global/api-kit';
 import Safe from '@safe-global/protocol-kit';
 import { MetaTransactionData, OperationType } from '@safe-global/types-kit';
-import { getProposerConfig, getSafeConfig, OwnerConfig } from './config';
+import { getProposerConfig, getSafeConfig, OwnerConfig, SafeConfig } from './config';
 import { AppError, ConfigurationError, ErrorCode, SafeTransactionError } from './errors';
 import { logger } from './logger';
 import { Validator } from './validation';
 
 export class SafeManager {
     private apiKit: SafeApiKit;
-    private safeConfig: Awaited<ReturnType<typeof getSafeConfig>>; // Fix this line
+    private safeConfig: SafeConfig;
 
-    private constructor(safeConfig: Awaited<ReturnType<typeof getSafeConfig>>) {
+    private constructor(safeConfig: SafeConfig) {
         this.safeConfig = safeConfig;
         this.apiKit = new SafeApiKit({
             chainId: this.safeConfig.chainId,
@@ -42,11 +40,6 @@ export class SafeManager {
      */
     private async createProtocolKit(ownerConfig: OwnerConfig): Promise<Safe> {
         try {
-            logger.debug('Creating Protocol Kit instance', {
-                safeAddress: this.safeConfig.safeAddress,
-                ownerAddress: ownerConfig.address,
-            });
-
             // Validate owner configuration
             Validator.validateAddress(ownerConfig.address, 'Owner address');
             Validator.validatePrivateKey(ownerConfig.privateKey);
@@ -57,7 +50,6 @@ export class SafeManager {
                 safeAddress: this.safeConfig.safeAddress,
             });
 
-            logger.debug('Protocol Kit instance created successfully');
             return protocolKit;
         } catch (error) {
             logger.error('Failed to create Protocol Kit instance', {
@@ -138,13 +130,6 @@ export class SafeManager {
     }
 
     /**
-     * Get a specific transaction by hash
-     */
-    async getTransaction(safeTxHash: string): Promise<unknown> {
-        return await this.apiKit.getTransaction(safeTxHash);
-    }
-
-    /**
      * Get the current nonce for the Safe
      */
     async getCurrentNonce(): Promise<number> {
@@ -154,9 +139,9 @@ export class SafeManager {
     }
 
     /**
-     * Get Safe information including owners
+     * Get Safe information including owners (internal helper)
      */
-    async getSafeInfo(): Promise<SafeInfoResponse> {
+    private async getSafeInfo(): Promise<SafeInfoResponse> {
         return await this.apiKit.getSafeInfo(this.safeConfig.safeAddress);
     }
 
@@ -231,25 +216,38 @@ export class SafeManager {
             nonce,
             error,
             transactionData,
+            errorDetails: this.extractErrorDetails(error),
         });
+    }
 
-        // Add more detailed error information
-        if (error && typeof error === 'object') {
-            if ('response' in error && error.response && typeof error.response === 'object') {
-                if ('status' in error.response) {
-                    logger.error('API Response Status', { status: error.response.status });
-                }
-                if ('data' in error.response) {
-                    logger.error('API Response Data', { data: error.response.data });
-                }
+    /**
+     * Extract detailed error information for logging
+     */
+    private extractErrorDetails(error: unknown): Record<string, unknown> {
+        if (!error || typeof error !== 'object') {
+            return {};
+        }
+
+        const details: Record<string, unknown> = {};
+
+        if ('response' in error && error.response && typeof error.response === 'object') {
+            if ('status' in error.response) {
+                details.status = error.response.status;
             }
-            if ('code' in error) {
-                logger.error('Error Code', { code: error.code });
-            }
-            if ('details' in error) {
-                logger.error('Error Details', { details: error.details });
+            if ('data' in error.response) {
+                details.responseData = error.response.data;
             }
         }
+
+        if ('code' in error) {
+            details.code = error.code;
+        }
+
+        if ('details' in error) {
+            details.errorDetails = error.details;
+        }
+
+        return details;
     }
 
     /**
