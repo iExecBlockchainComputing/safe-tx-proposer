@@ -44,9 +44,6 @@ PROPOSER_PRIVATE_KEY=...
 # Build
 npm run build
 
-# List pending transactions
-npm run safe:transaction-lister
-
 # Run tests
 npm test
 ```
@@ -57,7 +54,7 @@ npm test
 import { SafeManager } from 'safe-tx-proposer';
 
 const safeManager = await SafeManager.create();
-const pendingTxs = await safeManager.listPendingTransactions();
+// Use SafeManager for transaction execution
 ```
 
 ## License

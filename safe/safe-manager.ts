@@ -1,9 +1,5 @@
 import SafeApiKit, {
-    AllTransactionsListResponse,
     SafeInfoResponse,
-    SafeModuleTransactionListResponse,
-    SafeMultisigTransactionListResponse,
-    TransferListResponse,
 } from '@safe-global/api-kit';
 import Safe from '@safe-global/protocol-kit';
 import { MetaTransactionData, OperationType } from '@safe-global/types-kit';
@@ -146,45 +142,6 @@ export class SafeManager {
      */
     async getTransaction(safeTxHash: string): Promise<unknown> {
         return await this.apiKit.getTransaction(safeTxHash);
-    }
-
-    /*//////////////////////////////////////////////////////////////
-                            LIST-TRANSACTION
-    //////////////////////////////////////////////////////////////*/
-
-    /**
-     * Get pending transactions
-     */
-    async getPendingTransactions(): Promise<SafeMultisigTransactionListResponse> {
-        return await this.apiKit.getPendingTransactions(this.safeConfig.safeAddress);
-    }
-
-    /**
-     * Get all transactions
-     */
-    async getAllTransactions(): Promise<AllTransactionsListResponse> {
-        return await this.apiKit.getAllTransactions(this.safeConfig.safeAddress);
-    }
-
-    /**
-     * Get incoming transactions
-     */
-    async getIncomingTransactions(): Promise<TransferListResponse> {
-        return await this.apiKit.getIncomingTransactions(this.safeConfig.safeAddress);
-    }
-
-    /**
-     * Get multisig transactions
-     */
-    async getMultisigTransactions(): Promise<SafeMultisigTransactionListResponse> {
-        return await this.apiKit.getMultisigTransactions(this.safeConfig.safeAddress);
-    }
-
-    /**
-     * Get module transactions
-     */
-    async getModuleTransactions(): Promise<SafeModuleTransactionListResponse> {
-        return await this.apiKit.getModuleTransactions(this.safeConfig.safeAddress);
     }
 
     /**
