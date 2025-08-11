@@ -240,7 +240,34 @@ export function formatWeiToEther(wei: string): string {
  * Get broadcast file path
  */
 export function getBroadcastFilePath(scriptName: string, chainId: string): string {
-    return path.join(process.cwd(), 'broadcast', `${scriptName}.s.sol`, chainId, 'run-latest.json');
+    const baseDir = path.join(process.cwd(), 'broadcast', `${scriptName}.s.sol`, chainId);
+    
+    if (!fs.existsSync(baseDir)) {
+        throw new Error(`Broadcast directory not found: ${baseDir}`);
+    }
+    
+    // Find timestamped files (run-TIMESTAMP.json) excluding run-latest.json
+    const files = fs.readdirSync(baseDir)
+        .filter(file => 
+            file.startsWith('run-') && 
+            file.endsWith('.json') && 
+            file !== 'run-latest.json' &&
+            /^run-\d+\.json$/.test(file) // Ensure it matches the timestamp pattern
+        )
+        .sort((a, b) => {
+            // Extract timestamp from filename (run-TIMESTAMP.json)
+            const timestampA = parseInt(a.replace('run-', '').replace('.json', ''));
+            const timestampB = parseInt(b.replace('run-', '').replace('.json', ''));
+            return timestampB - timestampA; // Sort descending (most recent first)
+        });
+    
+    if (files.length === 0) {
+        throw new Error(`No timestamped broadcast files found in ${baseDir}. Make sure the Foundry script ran successfully.`);
+    }
+    
+    const mostRecentFile = path.join(baseDir, files[0]);
+    process.stdout.write(`Using broadcast file: ${files[0]}\n`);
+    return mostRecentFile;
 }
 
 /**
