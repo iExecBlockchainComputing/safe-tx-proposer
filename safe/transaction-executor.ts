@@ -24,6 +24,7 @@ import type {
     TransactionInput,
 } from './types/transaction-executor.types';
 import { TransactionConsoleUtils } from './utils/transaction-executor.console.utils';
+import type { MetaTransactionData } from '@safe-global/types-kit';
 
 export class TransactionExecutor {
     private safeManager: SafeManager;
@@ -178,31 +179,31 @@ export class TransactionExecutor {
         reject: (reason?: Error) => void,
     ): void {
         childProcess.on('close', (code: number) => {
-            console.log(`Forge process completed with exit code: ${code}`);
+            logger.info(`Forge process completed with exit code: ${code}`);
 
             // Clean up Anvil process
             this.anvilManager.stop();
 
             if (code === 0) {
-                console.log('Forge script executed successfully, fetching chain ID...');
+                logger.info('Forge script executed successfully, fetching chain ID...');
                 getChainIdFromRpc(config.rpcUrl)
                     .then((chainId) => {
-                        console.log('Chain ID obtained:', chainId);
+                        logger.info('Chain ID obtained:', { chainId });
                         resolve(chainId);
                     })
                     .catch((error) => {
-                        console.error('Error getting chain ID:', error);
+                        logger.error('Error getting chain ID:', error);
                         reject(new Error(`Error getting chain ID: ${String(error)}`));
                     });
             } else {
                 const errorMsg = `Forge process exited with code ${code}`;
-                console.error(errorMsg);
+                logger.error(errorMsg);
                 reject(new Error(errorMsg));
             }
         });
 
         childProcess.on('error', (error: Error) => {
-            console.error('Forge process error:', error);
+            logger.error('Forge process error:', error);
             // Clean up Anvil process on error
             this.anvilManager.stopOnError();
             reject(error);
@@ -227,7 +228,7 @@ export class TransactionExecutor {
         }
 
         const scriptName = config.scriptName || defaultScriptName;
-        console.log('Using script name for broadcast file:', scriptName);
+        logger.info('Using script name for broadcast file:', { scriptName });
 
         const transactions = this.readBroadcastFile(scriptName, chainId);
 
@@ -243,7 +244,6 @@ export class TransactionExecutor {
         });
 
         // Validate and convert broadcast transactions to transaction inputs
-        // Get one of the Safe owners to use as the 'from' address
         const safeOwners = await this.safeManager.getSafeOwners();
         if (safeOwners.length === 0) {
             throw new SafeTransactionError(
@@ -255,7 +255,7 @@ export class TransactionExecutor {
 
         // Use the first owner as the 'from' address
         const fromAddress = safeOwners[0];
-        console.log(`Using Safe owner as from address: ${fromAddress}`);
+        logger.info('Using Safe owner as from address:', { fromAddress });
 
         const transactionInputs = transactions.map((tx, index) => {
             try {
@@ -309,11 +309,11 @@ export class TransactionExecutor {
         dryRun: boolean = false,
     ): Promise<string[]> {
         if (transactions.length === 0) {
-            console.log('No transactions to execute');
+            logger.info('No transactions to execute');
             return [];
         }
 
-        console.log(`${dryRun ? 'Dry run: ' : ''}Executing ${transactions.length} transaction(s)`);
+        logger.info(`${dryRun ? 'Dry run: ' : ''}Executing ${transactions.length} transaction(s)`);
 
         if (dryRun) {
             TransactionConsoleUtils.displayDryRunTransactions(transactions);
@@ -330,7 +330,7 @@ export class TransactionExecutor {
         // Display transaction details
         TransactionConsoleUtils.displayTransactionDetails(transactions);
 
-        console.log('\nProposing transactions with sequential nonces...');
+        logger.info('Proposing transactions with sequential nonces...');
 
         try {
             // Try using the new sequential nonce method
@@ -340,37 +340,43 @@ export class TransactionExecutor {
             TransactionConsoleUtils.displayTransactionHashes(proposedHashes);
             return proposedHashes;
         } catch (error) {
-            console.error('Sequential nonce method failed:', error);
-            console.log('Falling back to individual transaction proposal...');
+            logger.error('Sequential nonce method failed:', error as Error);
+            logger.info('Falling back to individual transaction proposal...');
 
-            // Fallback to individual transaction proposal
-            const proposedHashes: string[] = [];
-
-            for (let i = 0; i < transactionsData.length; i++) {
-                TransactionConsoleUtils.displayTransactionProgress(
-                    i + 1, 
-                    transactionsData.length, 
-                    true
-                );
-
-                try {
-                    const hash = await this.safeManager.proposeTransaction(transactionsData[i]);
-                    proposedHashes.push(hash);
-                    TransactionConsoleUtils.displayTransactionSuccess(hash);
-
-                    // Small delay between transactions
-                    if (i < transactionsData.length - 1) {
-                        await sleep(DEFAULTS.TRANSACTION_DELAY);
-                    }
-                } catch (individualError) {
-                    TransactionConsoleUtils.displayTransactionFailure(i + 1, individualError);
-                    throw individualError;
-                }
-            }
-
-            TransactionConsoleUtils.displayTransactionHashes(proposedHashes, 'fallback method');
-            return proposedHashes;
+            return await this.executeTransactionsIndividually(transactionsData);
         }
+    }
+
+    /**
+     * Execute transactions individually as fallback
+     */
+    private async executeTransactionsIndividually(transactionsData: MetaTransactionData[]): Promise<string[]> {
+        const proposedHashes: string[] = [];
+
+        for (let i = 0; i < transactionsData.length; i++) {
+            TransactionConsoleUtils.displayTransactionProgress(
+                i + 1, 
+                transactionsData.length, 
+                true
+            );
+
+            try {
+                const hash = await this.safeManager.proposeTransaction(transactionsData[i]);
+                proposedHashes.push(hash);
+                TransactionConsoleUtils.displayTransactionSuccess(hash);
+
+                // Small delay between transactions
+                if (i < transactionsData.length - 1) {
+                    await sleep(DEFAULTS.TRANSACTION_DELAY);
+                }
+            } catch (individualError) {
+                TransactionConsoleUtils.displayTransactionFailure(i + 1, individualError);
+                throw individualError;
+            }
+        }
+
+        TransactionConsoleUtils.displayTransactionHashes(proposedHashes, 'fallback method');
+        return proposedHashes;
     }
 
     /**
@@ -432,7 +438,7 @@ export class TransactionExecutor {
      */
     private readBroadcastFile(scriptName: string, chainId: string): BroadcastTransaction[] {
         const broadcastPath = getBroadcastFilePath(scriptName, chainId);
-        console.log('Reading broadcast file from:', broadcastPath);
+        logger.info('Reading broadcast file from:', { broadcastPath });
 
         try {
             const broadcastData: BroadcastFile = readJsonFile(broadcastPath);
@@ -450,7 +456,7 @@ export class TransactionExecutor {
 
             return callTransactions;
         } catch (error) {
-            console.error('Error reading broadcast file:', error);
+            logger.error('Error reading broadcast file:', error as Error);
             throw new SafeTransactionError(
                 `Failed to read broadcast file: ${broadcastPath}`,
                 ErrorCode.SAFE_TRANSACTION_FAILED,
@@ -459,10 +465,5 @@ export class TransactionExecutor {
         }
     }
 
-    /**
-     * Get the current nonce for the Safe
-     */
-    async getCurrentNonce(): Promise<number> {
-        return await this.safeManager.getCurrentNonce();
-    }
+
 }
