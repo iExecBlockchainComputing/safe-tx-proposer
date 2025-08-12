@@ -55,13 +55,14 @@ jobs:
 
       # Test with minimal required inputs (dry run)
       # This test uses a mock broadcast file for testing the action without requiring actual Foundry execution
+      # The API call failure is handled gracefully in dry-run mode
       - name: Test Action - Dry Run with Mock Broadcast
         uses: ./
         with:
-          safe-address: '0x0000000000000000000000000000000000000000'
+          safe-address: '0x1234567890123456789012345678901234567890'
           rpc-url: 'https://eth.llamarpc.com'
           proposer-private-key: ${{ secrets.TEST_PRIVATE_KEY || '0x0000000000000000000000000000000000000000000000000000000000000001' }}
-          safe-api-key: 'test-key'
+          safe-api-key: ${{ secrets.SAFE_API_KEY || 'test-key' }}
           foundry-script-path: 'script/Test.s.sol:Test'
           dry-run: true
       
