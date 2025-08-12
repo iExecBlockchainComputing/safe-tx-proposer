@@ -1,0 +1,94 @@
+name: Test Action
+
+on:
+  push:
+    branches: [ main, feature/* ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test-action:
+    runs-on: ubuntu-latest
+    name: Test Safe Transaction Proposer Action
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build action
+        run: npm run build:action
+
+      - name: Test action build
+        run: |
+          if [ ! -f "dist/action/index.js" ]; then
+            echo "Action build failed - index.js not found"
+            exit 1
+          fi
+          echo "Action build successful"
+
+      # Test with minimal required inputs (dry run)
+      - name: Test Action - Dry Run
+        uses: ./
+        with:
+          safe-address: '0x0000000000000000000000000000000000000000'
+          rpc-url: 'https://eth.llamarpc.com'
+          proposer-private-key: ${{ secrets.TEST_PRIVATE_KEY || '0x0000000000000000000000000000000000000000000000000000000000000001' }}
+          safe-api-key: 'test-key'
+          foundry-script-path: 'script/test.s.sol'
+          action-mode: 'propose'
+          dry-run: true
+
+  lint:
+    runs-on: ubuntu-latest
+    name: Lint TypeScript
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run TypeScript compiler
+        run: npm run typecheck
+
+      - name: Run linter
+        run: npm run lint
+
+  build:
+    runs-on: ubuntu-latest
+    name: Build Package
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build package
+        run: npm run build
+
+      - name: Build action
+        run: npm run build:action
