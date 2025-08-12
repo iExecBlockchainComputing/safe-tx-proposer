@@ -6,6 +6,25 @@ import { AppError, ConfigurationError, ErrorCode, SafeTransactionError } from '.
 import { logger } from './logger';
 import { Validator } from './validation';
 
+// Type for API errors with response structure
+type ApiError = {
+    response?: {
+        status?: number;
+        data?: unknown;
+    };
+    code?: string | number;
+    details?: unknown;
+    message?: string;
+};
+
+// Type for error details extraction
+type ErrorDetails = {
+    status?: number;
+    responseData?: unknown;
+    code?: string | number;
+    errorDetails?: unknown;
+};
+
 export class SafeManager {
     private apiKit: SafeApiKit;
     private safeConfig: SafeConfig;
@@ -223,28 +242,29 @@ export class SafeManager {
     /**
      * Extract detailed error information for logging
      */
-    private extractErrorDetails(error: unknown): Record<string, unknown> {
+    private extractErrorDetails(error: unknown): ErrorDetails {
         if (!error || typeof error !== 'object') {
             return {};
         }
 
-        const details: Record<string, unknown> = {};
+        const details: ErrorDetails = {};
+        const err = error as ApiError;
 
-        if ('response' in error && error.response && typeof error.response === 'object') {
-            if ('status' in error.response) {
-                details.status = error.response.status;
+        if (err.response && typeof err.response === 'object') {
+            if (typeof err.response.status === 'number') {
+                details.status = err.response.status;
             }
-            if ('data' in error.response) {
-                details.responseData = error.response.data;
+            if (err.response.data !== undefined) {
+                details.responseData = err.response.data;
             }
         }
 
-        if ('code' in error) {
-            details.code = error.code;
+        if (err.code !== undefined) {
+            details.code = err.code;
         }
 
-        if ('details' in error) {
-            details.errorDetails = error.details;
+        if (err.details !== undefined) {
+            details.errorDetails = err.details;
         }
 
         return details;
