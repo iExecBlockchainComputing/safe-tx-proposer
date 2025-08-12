@@ -5,7 +5,7 @@ yarn-debug.log*
 yarn-error.log*
 
 # Production builds
-dist/
+# Note: dist/ is NOT ignored for GitHub Actions - we commit built files
 build/
 
 # Environment files
