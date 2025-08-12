@@ -1,0 +1,57 @@
+name: 'Safe Multisig Transaction Proposer'
+description: 'A reusable action for proposing transactions through Safe multisig wallets with Foundry integration'
+author: 'iExec Team'
+
+branding:
+  icon: 'shield'
+  color: 'blue'
+
+inputs:
+  # Safe Configuration
+  safe-address:
+    description: 'Safe multisig wallet address'
+    required: true
+  
+  # RPC Configuration
+  rpc-url:
+    description: 'RPC URL for blockchain interaction'
+    required: true
+  
+  # Private Keys (should be stored as secrets)
+  proposer-private-key:
+    description: 'Private key of the proposer account (Safe proposer or owner). Address is automatically derived from this key.'
+    required: true
+  
+  safe-api-key:
+    description: 'API key for Safe API service (optional)'
+    required: true
+  
+  # Foundry Script Configuration
+  foundry-script-path:
+    description: 'Path to the Foundry script to execute'
+    required: true
+  # Optional Configuration
+  dry-run:
+    description: 'Perform a dry run without actual execution (true/false)'
+    required: false
+    default: 'false'
+
+outputs:
+  transaction-hash:
+    description: 'Hash of the first proposed transaction'
+  
+  transaction-hashes:
+    description: 'JSON array of all transaction hashes'
+  
+  transaction-count:
+    description: 'Number of transactions processed'
+  
+  pending-transactions:
+    description: 'JSON object containing pending transactions (when using list-pending mode)'
+  
+  status:
+    description: 'Status of the operation (success, failed, pending)'
+
+runs:
+  using: 'node20'
+  main: 'dist/action/index.js'

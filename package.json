@@ -7,6 +7,8 @@
   "scripts": {
     "build": "tsc",
     "build:watch": "tsc --watch",
+    "build:action": "ncc build action/main.ts -o dist/action --minify",
+    "build:all": "npm run build && npm run build:action",
     "start": "node dist/safe/transaction-executor.js",
     "lint": "eslint safe/**/*.ts",
     "lint:fix": "eslint safe/**/*.ts --fix",
@@ -28,9 +30,12 @@
   "author": "iExec Blockchain Computing",
   "license": "MIT",
   "dependencies": {
+    "@actions/core": "^1.10.0",
+    "@actions/github": "^5.1.1",
     "@safe-global/api-kit": "^4.0.0",
     "@safe-global/protocol-kit": "^6.1.0",
     "@safe-global/types-kit": "^3.0.0",
+    "@vercel/ncc": "^0.38.3",
     "dotenv": "^16.4.5",
     "ethers": "^6.13.1"
   },
