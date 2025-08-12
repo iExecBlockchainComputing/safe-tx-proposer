@@ -44,7 +44,6 @@ jobs:
           proposer-private-key: ${{ secrets.TEST_PRIVATE_KEY || '0x0000000000000000000000000000000000000000000000000000000000000001' }}
           safe-api-key: 'test-key'
           foundry-script-path: 'script/test.s.sol'
-          action-mode: 'propose'
           dry-run: true
 
   lint:

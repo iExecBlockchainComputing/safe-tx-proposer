@@ -15,7 +15,6 @@ interface ActionInputs {
     proposerPrivateKey: string;
     safeApiKey: string;
     foundryScriptPath: string;
-    actionMode: 'propose' | 'list-pending';
     dryRun: boolean;
 }
 
@@ -33,7 +32,6 @@ class GitHubActionRunner {
             proposerPrivateKey: core.getInput('proposer-private-key', { required: true }),
             safeApiKey: core.getInput('safe-api-key'),
             foundryScriptPath: core.getInput('foundry-script-path', { required: true }),
-            actionMode: (core.getInput('action-mode') as 'propose' | 'list-pending') || 'propose',
             dryRun: core.getBooleanInput('dry-run') || false,
         };
     }
@@ -41,10 +39,10 @@ class GitHubActionRunner {
     private setupEnvironment(): void {
         // Create environment configuration for the Safe integration
         const envConfig = `
-SAFE_ADDRESS=${this.inputs.safeAddress}
-RPC_URL=${this.inputs.rpcUrl}
-PROPOSER_PRIVATE_KEY=${this.inputs.proposerPrivateKey}
-SAFE_API_KEY=${this.inputs.safeApiKey}
+            SAFE_ADDRESS=${this.inputs.safeAddress}
+            RPC_URL=${this.inputs.rpcUrl}
+            PROPOSER_PRIVATE_KEY=${this.inputs.proposerPrivateKey}
+            SAFE_API_KEY=${this.inputs.safeApiKey}
         `.trim();
 
         // Write environment configuration to a temporary file
@@ -58,7 +56,6 @@ SAFE_API_KEY=${this.inputs.safeApiKey}
 
         logger.info('Environment configured for GitHub Action', {
             safeAddress: this.inputs.safeAddress,
-            actionMode: this.inputs.actionMode,
             dryRun: this.inputs.dryRun,
         });
     }
@@ -74,22 +71,6 @@ SAFE_API_KEY=${this.inputs.safeApiKey}
             const message = error instanceof Error ? error.message : 'Unknown validation error';
             core.setFailed(`Input validation failed: ${message}`);
             throw error;
-        }
-    }
-
-    private async executeAction(): Promise<void> {
-        switch (this.inputs.actionMode) {
-            case 'propose':
-                await this.proposeTransaction();
-                break;
-            case 'list-pending':
-                await this.listPendingTransactions();
-                break;
-            default:
-                throw new SafeTransactionError(
-                    `Invalid action mode: ${String(this.inputs.actionMode)}`,
-                    ErrorCode.UNKNOWN_ERROR,
-                );
         }
     }
 
@@ -174,28 +155,6 @@ SAFE_API_KEY=${this.inputs.safeApiKey}
         }
     }
 
-    private async listPendingTransactions(): Promise<void> {
-        logger.info('Listing pending transactions');
-
-        try {
-            const safeManager = await SafeManager.create();
-            const pendingTxs = await safeManager.getPendingTransactions();
-
-            // Output pending transactions as JSON
-            core.setOutput('pending-transactions', JSON.stringify(pendingTxs, null, 2));
-            core.setOutput('status', 'success');
-
-            logger.info('Listed pending transactions', {
-                count: pendingTxs.results?.length || 0,
-                next: pendingTxs.next,
-                previous: pendingTxs.previous,
-            });
-        } catch (error) {
-            core.setOutput('status', 'failed');
-            throw error;
-        }
-    }
-
     async run(): Promise<void> {
         try {
             core.info('🚀 Starting Safe Multisig Transaction Proposer Action');
@@ -205,7 +164,7 @@ SAFE_API_KEY=${this.inputs.safeApiKey}
             await this.validateInputs();
 
             // Execute the requested action
-            await this.executeAction();
+            await this.proposeTransaction();
 
             core.info('✅ Action completed successfully');
         } catch (error) {

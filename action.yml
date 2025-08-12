@@ -30,13 +30,6 @@ inputs:
   foundry-script-path:
     description: 'Path to the Foundry script to execute'
     required: true
-  
-  # Action Mode
-  action-mode:
-    description: 'Action to perform: propose or list-pending'
-    required: false
-    default: 'propose'
-  
   # Optional Configuration
   dry-run:
     description: 'Perform a dry run without actual execution (true/false)'
