@@ -244,18 +244,32 @@ export class TransactionExecutor {
         });
 
         // Validate and convert broadcast transactions to transaction inputs
-        const safeOwners = await this.safeManager.getSafeOwners();
-        if (safeOwners.length === 0) {
-            throw new SafeTransactionError(
-                'No owners found for the Safe',
-                ErrorCode.INVALID_CONFIGURATION,
-                { safeAddress: this.safeManager.getSafeAddress() },
-            );
+        let safeOwners: string[];
+        let fromAddress: string;
+        
+        try {
+            safeOwners = await this.safeManager.getSafeOwners();
+            if (safeOwners.length === 0) {
+                throw new SafeTransactionError(
+                    'No owners found for the Safe',
+                    ErrorCode.INVALID_CONFIGURATION,
+                    { safeAddress: this.safeManager.getSafeAddress() },
+                );
+            }
+            fromAddress = safeOwners[0];
+            logger.info('Using Safe owner as from address:', { fromAddress });
+        } catch (error) {
+            if (config.dryRun) {
+                // In dry-run mode, use a mock address if we can't get real owners
+                fromAddress = this.safeManager.getSafeAddress();
+                logger.warn('Failed to get Safe owners, using Safe address as from address for dry-run', { 
+                    safeAddress: fromAddress,
+                    error: (error as Error).message 
+                });
+            } else {
+                throw error;
+            }
         }
-
-        // Use the first owner as the 'from' address
-        const fromAddress = safeOwners[0];
-        logger.info('Using Safe owner as from address:', { fromAddress });
 
         const transactionInputs = transactions.map((tx, index) => {
             try {
