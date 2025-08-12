@@ -27,6 +27,24 @@ jobs:
       - name: Build action
         run: npm run build:action
 
+      - name: Setup test environment
+        run: |
+          # Ensure test broadcast directory exists
+          mkdir -p broadcast/Test.s.sol/1
+          
+          # Verify test files are in place
+          if [ ! -f "script/Test.s.sol" ]; then
+            echo "ERROR: Test script not found"
+            exit 1
+          fi
+          
+          if [ ! -f "broadcast/Test.s.sol/1/run-1692000000.json" ]; then
+            echo "ERROR: Test broadcast file not found"
+            exit 1
+          fi
+          
+          echo "Test environment setup complete"
+
       - name: Test action build
         run: |
           if [ ! -f "dist/action/index.js" ]; then
@@ -36,15 +54,38 @@ jobs:
           echo "Action build successful"
 
       # Test with minimal required inputs (dry run)
-      - name: Test Action - Dry Run
+      # This test uses a mock broadcast file for testing the action without requiring actual Foundry execution
+      - name: Test Action - Dry Run with Mock Broadcast
         uses: ./
         with:
           safe-address: '0x0000000000000000000000000000000000000000'
           rpc-url: 'https://eth.llamarpc.com'
           proposer-private-key: ${{ secrets.TEST_PRIVATE_KEY || '0x0000000000000000000000000000000000000000000000000000000000000001' }}
           safe-api-key: 'test-key'
-          foundry-script-path: 'script/test.s.sol'
+          foundry-script-path: 'script/Test.s.sol:Test'
           dry-run: true
+      
+      # Test that the action fails gracefully with invalid inputs
+      - name: Test Action - Invalid Script Path (Expected to Fail)
+        continue-on-error: true
+        id: test-invalid
+        uses: ./
+        with:
+          safe-address: '0x0000000000000000000000000000000000000000'
+          rpc-url: 'https://eth.llamarpc.com'
+          proposer-private-key: ${{ secrets.TEST_PRIVATE_KEY || '0x0000000000000000000000000000000000000000000000000000000000000001' }}
+          safe-api-key: 'test-key'
+          foundry-script-path: 'script/NonExistent.s.sol:NonExistent'
+          dry-run: true
+      
+      - name: Verify Invalid Test Failed as Expected
+        run: |
+          if [ "${{ steps.test-invalid.outcome }}" = "success" ]; then
+            echo "ERROR: Invalid test should have failed but succeeded"
+            exit 1
+          else
+            echo "SUCCESS: Invalid test failed as expected"
+          fi
 
   lint:
     runs-on: ubuntu-latest
