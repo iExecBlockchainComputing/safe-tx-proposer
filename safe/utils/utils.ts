@@ -3,11 +3,20 @@ import * as fs from 'fs';
 import * as path from 'path';
 
 /**
+ * Result interface for utility operations that may fail
+ */
+export interface UtilityResult<T> {
+    success: boolean;
+    value: T;
+    error?: string;
+}
+
+/**
  * Convert hex string to decimal string
  */
-export function convertHexToDecimal(hexValue: string): string {
+export function convertHexToDecimal(hexValue: string): UtilityResult<string> {
     if (!hexValue || hexValue === '0x' || hexValue === '0x0') {
-        return '0';
+        return { success: true, value: '0' };
     }
 
     // Remove 0x prefix if present
@@ -17,11 +26,14 @@ export function convertHexToDecimal(hexValue: string): string {
     const decimal = parseInt(cleanHex, 16);
 
     if (isNaN(decimal)) {
-        process.stderr.write(`Invalid hex value: ${hexValue}, using 0\n`);
-        return '0';
+        return { 
+            success: false, 
+            value: '0', 
+            error: `Invalid hex value: ${hexValue}` 
+        };
     }
 
-    return decimal.toString();
+    return { success: true, value: decimal.toString() };
 }
 
 /**

@@ -259,10 +259,19 @@ export class TransactionExecutor {
 
         const transactionInputs = transactions.map((tx, index) => {
             try {
+                const valueResult = convertHexToDecimal(tx.transaction.value);
+                if (!valueResult.success) {
+                    throw new SafeTransactionError(
+                        `Invalid transaction value: ${valueResult.error}`,
+                        ErrorCode.INVALID_TRANSACTION_DATA,
+                        { index, transaction: tx, error: valueResult.error },
+                    );
+                }
+
                 const txInput: TransactionInput = {
                     to: toChecksumAddress(tx.transaction.to),
                     from: fromAddress, // Use one of the Safe owners
-                    value: convertHexToDecimal(tx.transaction.value),
+                    value: valueResult.value,
                     data: tx.transaction.input,
                     operation: 'call' as const,
                 };
