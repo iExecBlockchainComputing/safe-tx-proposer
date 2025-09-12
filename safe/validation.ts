@@ -95,32 +95,33 @@ export class Validator {
     /**
      * Validate chain ID
      */
-    static validateChainId(chainId: string | number, fieldName: string = 'chain ID'): void {
+    static validateChainId(chainId: string | number, fieldName: string = 'chain ID'): ValidationResult {
+        const errors: string[] = [];
+        const warnings: string[] = [];
+        let isValid = true;
+    
         if (!chainId && chainId !== 0) {
-            throw new ValidationError(`${fieldName} is required`, ErrorCode.INVALID_CONFIGURATION, {
-                field: fieldName,
-            });
+            errors.push(`${fieldName} is required`);
+            isValid = false;
         }
 
         const numericChainId = typeof chainId === 'string' ? parseInt(chainId, 10) : chainId;
 
         if (isNaN(numericChainId) || numericChainId < 0) {
-            throw new ValidationError(
-                `Invalid ${fieldName}: must be a non-negative number`,
-                ErrorCode.INVALID_CONFIGURATION,
-                { field: fieldName, value: chainId },
-            );
+            errors.push(`Invalid ${fieldName}: must be a non-negative number`);
+            isValid = false;
         }
 
         // Validate against known chain IDs
         const knownChainIds = [1, 11155111, 42161, 421614, 31337, 1337];
         if (!knownChainIds.includes(numericChainId)) {
             // This is a warning, not an error
-            process.stderr.write(
-                `Warning: Chain ID ${numericChainId} is not in the list of known networks. ` +
-                    `Known chains: ${knownChainIds.join(', ')}\n`,
+            warnings.push(
+                `Chain ID ${numericChainId} is not in the list of known networks. ` +
+                `Known chains: ${knownChainIds.join(', ')}`
             );
         }
+        return { isValid, errors, warnings };
     }
 
     /**
@@ -246,12 +247,44 @@ export class Validator {
      * Validate environment variables
      */
     static validateEnvironmentVariables(envVars: Record<string, unknown>): ValidationResult {
+        const requiredVarsResult = this.validateRequiredEnvVars(envVars);
+        const formatsResult = this.validateEnvVarFormats(envVars);
+        const securityResult = this.checkProductionSecurity(envVars);
+
+        const allErrors = [
+            ...requiredVarsResult.errors,
+            ...formatsResult.errors,
+            ...securityResult.errors,
+        ];
+
+        const allWarnings = [
+            ...requiredVarsResult.warnings,
+            ...formatsResult.warnings,
+            ...securityResult.warnings,
+        ];
+
+        return {
+            isValid: allErrors.length === 0,
+            errors: allErrors,
+            warnings: allWarnings,
+        };
+    }
+
+    /**
+     * Validate required environment variables
+     */
+    private static validateRequiredEnvVars(
+        envVars: Record<string, unknown>,
+    ): ValidationResult {
         const errors: string[] = [];
         const warnings: string[] = [];
+        const required = ['RPC_URL', 'SAFE_ADDRESS', 'SAFE_API_KEY', 'PROPOSER_PRIVATE_KEY'];
 
-        this.validateRequiredEnvVars(envVars, errors);
-        this.validateEnvVarFormats(envVars, errors);
-        this.checkProductionSecurity(envVars, warnings);
+        for (const envVar of required) {
+            if (!envVars[envVar]) {
+                errors.push(`Missing required environment variable: ${envVar}`);
+            }
+        }
 
         return {
             isValid: errors.length === 0,
@@ -261,52 +294,49 @@ export class Validator {
     }
 
     /**
-     * Validate required environment variables
-     */
-    private static validateRequiredEnvVars(
-        envVars: Record<string, unknown>,
-        errors: string[],
-    ): void {
-        const required = ['RPC_URL', 'SAFE_ADDRESS', 'SAFE_API_KEY', 'PROPOSER_PRIVATE_KEY'];
-
-        for (const envVar of required) {
-            if (!envVars[envVar]) {
-                errors.push(`Missing required environment variable: ${envVar}`);
-            }
-        }
-    }
-
-    /**
      * Validate environment variable formats
      */
-    private static validateEnvVarFormats(envVars: Record<string, unknown>, errors: string[]): void {
-        this.validateEnvVarFormat(
+    private static validateEnvVarFormats(envVars: Record<string, unknown>): ValidationResult {
+        const errors: string[] = [];
+        const warnings: string[] = [];
+
+        const rpcResult = this.validateEnvVarFormat(
             envVars,
             'RPC_URL',
             (value) => this.validateRpcUrl(value as string),
-            errors,
         );
+        errors.push(...rpcResult.errors);
+        warnings.push(...rpcResult.warnings);
 
-        this.validateEnvVarFormat(
+        const safeAddressResult = this.validateEnvVarFormat(
             envVars,
             'SAFE_ADDRESS',
             (value) => this.validateAddress(value as string, 'SAFE_ADDRESS'),
-            errors,
         );
+        errors.push(...safeAddressResult.errors);
+        warnings.push(...safeAddressResult.warnings);
 
-        this.validateEnvVarFormat(
+        const privateKeyResult = this.validateEnvVarFormat(
             envVars,
             'PROPOSER_PRIVATE_KEY',
             (value) => this.validatePrivateKey(value as string, 'PROPOSER_PRIVATE_KEY'),
-            errors,
         );
+        errors.push(...privateKeyResult.errors);
+        warnings.push(...privateKeyResult.warnings);
 
-        this.validateEnvVarFormat(
+        const chainIdResult = this.validateEnvVarFormat(
             envVars,
             'CHAIN_ID',
             (value) => this.validateChainId(value as string | number),
-            errors,
         );
+        errors.push(...chainIdResult.errors);
+        warnings.push(...chainIdResult.warnings);
+
+        return {
+            isValid: errors.length === 0,
+            errors,
+            warnings,
+        };
     }
 
     /**
@@ -315,16 +345,32 @@ export class Validator {
     private static validateEnvVarFormat(
         envVars: Record<string, unknown>,
         varName: string,
-        validator: (value: unknown) => void,
-        errors: string[],
-    ): void {
+        validator: (value: unknown) => ValidationResult | void,
+    ): ValidationResult {
+        const errors: string[] = [];
+        const warnings: string[] = [];
+
         if (envVars[varName]) {
             try {
-                validator(envVars[varName]);
+                const result = validator(envVars[varName]);
+                if (result && typeof result === 'object' && 'isValid' in result) {
+                    // Validator returns ValidationResult (like validateChainId)
+                    errors.push(...result.errors);
+                    warnings.push(...result.warnings);
+                } else {
+                    // Validator returns void and throws on error (like other validators)
+                    // No error means validation passed
+                }
             } catch (error) {
                 errors.push(`Invalid ${varName}: ${(error as Error).message}`);
             }
         }
+
+        return {
+            isValid: errors.length === 0,
+            errors,
+            warnings,
+        };
     }
 
     /**
@@ -332,8 +378,10 @@ export class Validator {
      */
     private static checkProductionSecurity(
         envVars: Record<string, unknown>,
-        warnings: string[],
-    ): void {
+    ): ValidationResult {
+        const errors: string[] = [];
+        const warnings: string[] = [];
+
         if (process.env.NODE_ENV === 'production') {
             if (
                 envVars.PROPOSER_PRIVATE_KEY &&
@@ -342,6 +390,12 @@ export class Validator {
                 warnings.push('Private key detected in environment - ensure logs are secure');
             }
         }
+
+        return {
+            isValid: true, // Security checks only generate warnings, not errors
+            errors,
+            warnings,
+        };
     }
 }
 

@@ -1,13 +1,23 @@
 import { ethers } from 'ethers';
 import * as fs from 'fs';
 import * as path from 'path';
+import { logger } from '../logger';
+
+/**
+ * Result interface for utility operations that may fail
+ */
+export interface UtilityResult<T> {
+    success: boolean;
+    value: T;
+    error?: string;
+}
 
 /**
  * Convert hex string to decimal string
  */
-export function convertHexToDecimal(hexValue: string): string {
+export function convertHexToDecimal(hexValue: string): UtilityResult<string> {
     if (!hexValue || hexValue === '0x' || hexValue === '0x0') {
-        return '0';
+        return { success: true, value: '0' };
     }
 
     // Remove 0x prefix if present
@@ -17,11 +27,14 @@ export function convertHexToDecimal(hexValue: string): string {
     const decimal = parseInt(cleanHex, 16);
 
     if (isNaN(decimal)) {
-        process.stderr.write(`Invalid hex value: ${hexValue}, using 0\n`);
-        return '0';
+        return { 
+            success: false, 
+            value: '0', 
+            error: `Invalid hex value: ${hexValue}` 
+        };
     }
 
-    return decimal.toString();
+    return { success: true, value: decimal.toString() };
 }
 
 /**
@@ -29,19 +42,19 @@ export function convertHexToDecimal(hexValue: string): string {
  */
 export async function getChainIdFromRpc(rpcUrl: string): Promise<string> {
     try {
-        process.stdout.write(`Fetching chain ID from RPC: ${rpcUrl}\n`);
+        logger.info(`Fetching chain ID from RPC: ${rpcUrl}`);
 
         const provider = new ethers.JsonRpcProvider(rpcUrl);
         const network = await provider.getNetwork();
         const chainId = network.chainId.toString();
 
-        process.stdout.write(`Chain ID retrieved: ${chainId}\n`);
+        logger.info(`Chain ID retrieved: ${chainId}`);
         return chainId;
     } catch (error) {
-        process.stderr.write(`Failed to fetch chain ID from RPC: ${String(error)}\n`);
+        logger.error(`Failed to fetch chain ID from RPC: ${String(error)}`);
 
         // Fallback to hardcoded mapping as a last resort
-        process.stdout.write('Falling back to hardcoded chain ID mapping...\n');
+        logger.info('Falling back to hardcoded chain ID mapping...');
         const chainMappings: Record<string, string> = {
             sepolia: '11155111',
             'arbitrum-sepolia': '421614',
@@ -55,13 +68,13 @@ export async function getChainIdFromRpc(rpcUrl: string): Promise<string> {
         const url = rpcUrl.toLowerCase();
         for (const [network, chainId] of Object.entries(chainMappings)) {
             if (url.includes(network)) {
-                process.stdout.write(`Using fallback chain ID: ${chainId}\n`);
+                logger.info(`Using fallback chain ID: ${chainId}`);
                 return chainId;
             }
         }
 
         // Default to Sepolia if cannot determine
-        process.stdout.write('Using default chain ID: 11155111 (Sepolia)\n');
+        logger.info('Using default chain ID: 11155111 (Sepolia)');
         return '11155111';
     }
 }
@@ -124,7 +137,7 @@ export function toChecksumAddress(address: string): string {
     try {
         return ethers.getAddress(address);
     } catch {
-        process.stderr.write(`Invalid address format: ${address}\n`);
+        logger.warn(`Invalid address format: ${address}`);
         return address; // Return original if conversion fails
     }
 }
@@ -159,6 +172,6 @@ export function getBroadcastFilePath(scriptName: string, chainId: string): strin
     }
     
     const mostRecentFile = path.join(baseDir, files[0]);
-    process.stdout.write(`Using broadcast file: ${files[0]}\n`);
+    logger.info(`Using broadcast file: ${files[0]}`);
     return mostRecentFile;
 }
