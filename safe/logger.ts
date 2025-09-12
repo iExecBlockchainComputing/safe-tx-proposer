@@ -96,8 +96,11 @@ export class Logger {
         if (!this.config.enableConsole) {
             return;
         }
-
-        process.stdout.write(formattedMessage + '\n');
+        if (level === LogLevel.ERROR || level === LogLevel.WARN) {
+            process.stderr.write(formattedMessage + '\n');
+        } else {
+            process.stdout.write(formattedMessage + '\n');
+        }
     }
 
     private log(level: LogLevel, message: string, metadata?: Record<string, unknown>): void {
