@@ -2,6 +2,7 @@
   "name": "safe-tx-proposer",
   "version": "1.0.0",
   "description": "Safe Multisig Transaction Proposer for EVM Networks",
+  "type": "module",
   "main": "dist/safe/index.js",
   "types": "dist/safe/index.d.ts",
   "scripts": {
@@ -11,20 +12,10 @@
     "lint": "eslint safe/**/*.ts",
     "lint:fix": "eslint safe/**/*.ts --fix",
     "clean": "rimraf dist",
-    "safe:execute": "ts-node safe/cli/transaction-executor.cli.ts",
-    "safe:validate": "ts-node scripts/validate.ts",
+    "safe:execute": "tsx safe/cli/transaction-executor.cli.ts",
+    "safe:validate": "tsx scripts/validate.ts",
     "typecheck": "tsc --noEmit"
   },
-  "keywords": [
-    "safe",
-    "multisig",
-    "ethereum",
-    "blockchain",
-    "iexec",
-    "typescript", 
-    "foundry",
-    "transaction-automation"
-  ],
   "author": "iExec Blockchain Computing",
   "license": "MIT",
   "dependencies": {
@@ -40,7 +31,7 @@
     "@typescript-eslint/parser": "^7.18.0",
     "eslint": "^8.57.0",
     "rimraf": "^5.0.7",
-    "ts-node": "^10.9.2",
+    "tsx": "^4.7.0",
     "typescript": "^5.5.3"
   },
   "engines": {
@@ -50,11 +41,5 @@
   "repository": {
     "type": "git",
     "url": "https://github.com/iExecBlockchainComputing/safe-tx-proposer.git"
-  },
-  "files": [
-    "dist/**/*",
-    "safe/**/*",
-    ".env.template",
-    "README.md"
-  ]
+  }
 }
