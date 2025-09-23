@@ -1,12 +1,13 @@
 {
   "compilerOptions": {
     "target": "ES2020",
-    "module": "commonjs",
+    "module": "ESNext",
     "lib": ["ES2020"],
     "outDir": "./dist",
     "rootDir": "./",
     "strict": true,
     "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
     "resolveJsonModule": true,
@@ -36,14 +37,7 @@
     "action/**/*",
   ],
   "exclude": [
-        "node_modules",
-        "dist",
-        "lib",
-        "out",
-        "cache",
-        "logs",
-        "broadcast",
-        "**/*.test.ts",
-        "**/*.spec.ts"
-    ],
+    "node_modules",
+    "dist"
+  ]
 }
