@@ -23,7 +23,8 @@
     "@safe-global/protocol-kit": "^6.1.0",
     "@safe-global/types-kit": "^3.0.0",
     "dotenv": "^16.4.5",
-    "ethers": "^6.13.1"
+    "ethers": "^6.13.1",
+    "winston": "^3.17.0"
   },
   "devDependencies": {
     "@types/node": "^20.14.10",

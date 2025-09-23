@@ -1,16 +1,10 @@
+import winston from 'winston';
+
 export enum LogLevel {
     ERROR = 0,
     WARN = 1,
     INFO = 2,
     DEBUG = 3,
-}
-
-export interface LogEntry {
-    timestamp: string;
-    level: string;
-    message: string;
-    metadata?: Record<string, unknown>;
-    error?: Record<string, unknown>;
 }
 
 export interface LoggerConfig {
@@ -19,14 +13,37 @@ export interface LoggerConfig {
 }
 
 export class Logger {
-    private config: LoggerConfig;
+    private winstonLogger: winston.Logger;
 
     constructor(config: Partial<LoggerConfig> = {}) {
-        this.config = {
-            level: this.getLogLevelFromEnv(),
-            enableConsole: true,
-            ...config,
-        };
+        const logLevel = this.getLogLevelFromEnv();
+        const enableConsole = config.enableConsole ?? true;
+        
+        this.winstonLogger = winston.createLogger({
+            level: this.mapLogLevelToWinston(logLevel),
+            format: winston.format.combine(
+                winston.format.timestamp(),
+                winston.format.errors({ stack: true }),
+                winston.format.json(),
+                winston.format.printf((info) => {
+                    // Custom format to handle metadata sanitization
+                    const sanitized = this.sanitizeLogInfo(info);
+                    return JSON.stringify(sanitized);
+                })
+            ),
+            transports: enableConsole ? [
+                new winston.transports.Console({
+                    stderrLevels: ['error', 'warn'],
+                    format: process.env.NODE_ENV !== 'production' 
+                        ? winston.format.combine(
+                            winston.format.colorize(),
+                            winston.format.simple()
+                        )
+                        : winston.format.json()
+                })
+            ] : [],
+            silent: !enableConsole
+        });
     }
 
     private getLogLevelFromEnv(): LogLevel {
@@ -45,23 +62,32 @@ export class Logger {
         }
     }
 
-    private shouldLog(level: LogLevel): boolean {
-        return level <= this.config.level;
+    private mapLogLevelToWinston(level: LogLevel): string {
+        switch (level) {
+            case LogLevel.ERROR:
+                return 'error';
+            case LogLevel.WARN:
+                return 'warn';
+            case LogLevel.INFO:
+                return 'info';
+            case LogLevel.DEBUG:
+                return 'debug';
+            default:
+                return 'info';
+        }
     }
 
-    private formatMessage(level: LogLevel, message: string, metadata?: Record<string, unknown>): string {
-        const timestamp = new Date().toISOString();
-        const levelName = LogLevel[level];
+    private sanitizeLogInfo(info: any): any {
+        const sanitized = { ...info };
         
-        const logEntry: LogEntry = {
-            timestamp,
-            level: levelName,
-            message,
-            ...(metadata && {
-                metadata: this.sanitizeMetadata(metadata) as Record<string, unknown>,
-            }),
-        };
-        return JSON.stringify(logEntry);
+        // Sanitize all properties in the log info
+        Object.keys(sanitized).forEach(key => {
+            if (key !== 'level' && key !== 'message' && key !== 'timestamp') {
+                sanitized[key] = this.sanitizeMetadata(sanitized[key]);
+            }
+        });
+        
+        return sanitized;
     }
 
     /**
@@ -92,54 +118,46 @@ export class Logger {
         return sanitized;
     }
 
-    private writeToConsole(level: LogLevel, formattedMessage: string): void {
-        if (!this.config.enableConsole) {
-            return;
-        }
-        if (level === LogLevel.ERROR || level === LogLevel.WARN) {
-            process.stderr.write(formattedMessage + '\n');
-        } else {
-            process.stdout.write(formattedMessage + '\n');
-        }
-    }
-
-    private log(level: LogLevel, message: string, metadata?: Record<string, unknown>): void {
-        if (!this.shouldLog(level)) {
-            return;
-        }
-
-        const formattedMessage = this.formatMessage(level, message, metadata);
-        this.writeToConsole(level, formattedMessage);
-    }
-
     error(message: string, error?: Error | Record<string, unknown>): void {
-        const metadata: Record<string, unknown> = {};
+        const logData: any = { message };
 
         if (error) {
             if (error instanceof Error) {
-                metadata.error = {
+                logData.error = {
                     name: error.name,
                     message: error.message,
                     stack: error.stack,
                 };
             } else {
-                metadata.error = error;
+                logData.error = this.sanitizeMetadata(error);
             }
         }
 
-        this.log(LogLevel.ERROR, message, metadata);
+        this.winstonLogger.error(logData);
     }
 
     warn(message: string, metadata?: Record<string, unknown>): void {
-        this.log(LogLevel.WARN, message, metadata);
+        const logData: any = { message };
+        if (metadata) {
+            Object.assign(logData, this.sanitizeMetadata(metadata));
+        }
+        this.winstonLogger.warn(logData);
     }
 
     info(message: string, metadata?: Record<string, unknown>): void {
-        this.log(LogLevel.INFO, message, metadata);
+        const logData: any = { message };
+        if (metadata) {
+            Object.assign(logData, this.sanitizeMetadata(metadata));
+        }
+        this.winstonLogger.info(logData);
     }
 
     debug(message: string, metadata?: Record<string, unknown>): void {
-        this.log(LogLevel.DEBUG, message, metadata);
+        const logData: any = { message };
+        if (metadata) {
+            Object.assign(logData, this.sanitizeMetadata(metadata));
+        }
+        this.winstonLogger.debug(logData);
     }
 }
 
