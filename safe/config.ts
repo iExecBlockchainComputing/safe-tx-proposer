@@ -1,9 +1,14 @@
 import { config } from 'dotenv';
 import { ethers } from 'ethers';
 import * as path from 'path';
+import { fileURLToPath } from 'url';
 import { ConfigurationError } from './errors';
 import { logger } from './logger';
 import { Validator } from './validation';
+
+// Get the directory name in ES module
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // Load environment variables from .env
 config({ path: path.join(__dirname, '../.env') });
